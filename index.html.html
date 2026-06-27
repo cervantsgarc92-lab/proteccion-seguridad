@@ -1,0 +1,1923 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Protección y Seguridad</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="P&S">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#090E14">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjM4IiBmaWxsPSIjMEYxNTIwIi8+PHBhdGggZD0iTTk2IDI0bDU2IDIxdjQyYzAgMzMtMjggNTYtNTYgNjYtMjgtMTAtNTYtMzMtNTYtNjZWNDV6IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMEU1QzAiIHN0cm9rZS13aWR0aD0iOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ═══════════════════════════════════════════════════
+// 🔥 FIREBASE CONFIG — pega aquí tus credenciales
+// ═══════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "AIzaSyDOPQJFATtSC8xzTXdTkYYsDknLG2mkZn8",
+  authDomain:        "pyscpr.firebaseapp.com",
+  projectId:         "pyscpr",
+  storageBucket:     "pyscpr.firebasestorage.app",
+  messagingSenderId: "576758759141",
+  appId:             "1:576758759141:web:b9c5787823c9f1abfd5e0c"
+};
+// ═══════════════════════════════════════════════════
+
+const fbApp = initializeApp(firebaseConfig);
+const db    = getFirestore(fbApp);
+
+// ── Expose Firebase functions to global scope ──
+window.FB = {
+  // Config (responsables, actividades, ajustes) — single doc per collection
+  async getConfig(key) {
+    try {
+      const snap = await getDoc(doc(db, 'config', key));
+      return snap.exists() ? snap.data().value : null;
+    } catch(e) { console.error('getConfig', e); return null; }
+  },
+  async setConfig(key, value) {
+    try { await setDoc(doc(db, 'config', key), { value }); } catch(e) { console.error('setConfig', e); }
+  },
+
+  // Reportes — collection with one doc per report
+  async addReporte(rep) {
+    try {
+      const ref = await addDoc(collection(db, 'reportes'), rep);
+      return ref.id;
+    } catch(e) { console.error('addReporte', e); return null; }
+  },
+  async deleteReporte(fbId) {
+    try { await deleteDoc(doc(db, 'reportes', fbId)); } catch(e) { console.error('deleteReporte', e); }
+  },
+  listenReportes(callback) {
+    const q = query(collection(db, 'reportes'), orderBy('timestamp', 'desc'));
+    return onSnapshot(q, snap => {
+      const reps = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+      callback(reps);
+    }, e => console.error('listenReportes', e));
+  },
+  async getAllReportes() {
+    try {
+      const q = query(collection(db, 'reportes'), orderBy('timestamp', 'desc'));
+      const snap = await getDocs(q);
+      return snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+    } catch(e) { console.error('getAllReportes', e); return []; }
+  },
+};
+
+window.FB_READY = true;
+window.dispatchEvent(new Event('fb-ready'));
+console.log('Firebase listo ✓');
+</script>
+<style>
+:root{
+  --bg:#090E14;--s1:#0F1520;--s2:#161D2A;--s3:#1E2738;--s4:#252F42;
+  --b1:rgba(255,255,255,0.06);--b2:rgba(255,255,255,0.11);--b3:rgba(255,255,255,0.18);
+  --t1:#EDF0F7;--t2:#8A92A8;--t3:#4A5268;--t4:#2E3548;
+  --g:#00E5C0;--gd:rgba(0,229,192,0.1);--gd2:rgba(0,229,192,0.05);
+  --y:#FFB830;--yd:rgba(255,184,48,0.12);
+  --r:#FF4060;--rd:rgba(255,64,96,0.12);
+  --b:#4D8FFF;--bd:rgba(77,143,255,0.12);
+  --mono:'Space Mono',monospace;--body:'Outfit',sans-serif;
+  --rad:12px;--radl:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:var(--body);background:var(--bg);color:var(--t1);font-size:15px;overscroll-behavior:none;}
+
+/* ── LAYOUT ── */
+#root{display:flex;flex-direction:column;height:100vh;width:100%;position:relative;overflow:hidden;}
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden;}
+.screen.on{display:flex;}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:16px;}
+.scroll.nopad{padding:0;}
+
+/* ── DESKTOP ── */
+@media(min-width:768px){
+  #scr-login{align-items:center;justify-content:center;background:var(--bg);}
+  #scr-login .scroll{max-width:520px;width:100%;flex:none;background:var(--s1);border:1px solid var(--b1);border-radius:20px;margin:24px auto;max-height:calc(100vh - 48px);overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.5);}
+  #scr-app{flex-direction:row;}
+  .topbar{display:none!important;}
+  .sesbar{display:none!important;}
+  #bnav-resp{display:none!important;}
+  #bnav-sup{display:none!important;}
+  #desk-sidebar{display:flex!important;flex-direction:column;width:220px;min-width:220px;background:var(--s1);border-right:1px solid var(--b1);flex-shrink:0;}
+  #main-content{flex:1;overflow-y:auto;}
+  #main-content>.scroll,.view{padding:28px 36px!important;max-width:none!important;}
+}
+@media(max-width:767px){
+  #desk-sidebar{display:none!important;}
+  .desk-grid-2{display:block!important;}
+  .desk-grid-3{display:block!important;}
+  .desk-grid-4{display:block!important;}
+}
+
+/* ── HEADER ── */
+.topbar{background:var(--s1);border-bottom:1px solid var(--b1);padding:12px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.topbar-left{display:flex;align-items:center;gap:10px;min-width:0;}
+.back-btn{width:32px;height:32px;background:var(--s2);border:1px solid var(--b2);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:14px;}
+.topbar-info{min-width:0;}
+.topbar-title{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.topbar-sub{font-size:11px;color:var(--t3);font-family:var(--mono);}
+.clock-badge{font-family:var(--mono);font-size:11px;color:var(--g);background:var(--gd);border:1px solid rgba(0,229,192,0.2);padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;}
+
+/* ── SESSION BAR ── */
+.sesbar{background:var(--s2);border-bottom:1px solid var(--b1);padding:7px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.sesbar-info{font-size:12px;color:var(--t2);}
+.sesbar-info strong{color:var(--t1);font-weight:500;}
+.btn-xs{background:transparent;border:1px solid var(--b2);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--t2);cursor:pointer;font-family:var(--body);}
+
+/* ── BOTTOM NAV ── */
+.bnav{display:flex;background:var(--s1);border-top:1px solid var(--b1);flex-shrink:0;}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;padding:9px 4px 13px;gap:4px;cursor:pointer;border:none;background:transparent;color:var(--t3);font-family:var(--body);font-size:10px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;transition:color .15s;}
+.bni.on{color:var(--g);}
+.bni svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+
+/* ── LOGIN ── */
+#scr-login .scroll{display:flex;flex-direction:column;justify-content:center;padding:28px 22px;}
+.login-mark{width:60px;height:60px;background:var(--gd);border:1px solid rgba(0,229,192,0.25);border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;}
+.login-mark svg{width:30px;height:30px;stroke:var(--g);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.login-h{font-size:22px;font-weight:700;margin-bottom:4px;}
+.login-p{font-size:13px;color:var(--t2);margin-bottom:24px;line-height:1.5;}
+.sec-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--t3);text-transform:uppercase;margin:0 0 10px;}
+.inst-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px;}
+.inst-btn{background:var(--s2);border:1.5px solid var(--b1);border-radius:var(--rad);padding:12px 6px;text-align:center;cursor:pointer;transition:all .15s;font-family:var(--body);}
+.inst-btn .ib-icon{font-size:18px;margin-bottom:4px;}
+.inst-btn .ib-name{font-size:11px;font-weight:600;color:var(--t1);display:block;}
+.inst-btn.sel{border-color:rgba(0,229,192,.5);background:var(--gd);}
+.inst-btn.sel .ib-name{color:var(--g);}
+.turn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+.turn-btn{background:var(--s2);border:1.5px solid var(--b1);border-radius:var(--rad);padding:11px 6px;text-align:center;cursor:pointer;transition:all .15s;font-family:var(--body);}
+.turn-btn .tb-icon{font-size:16px;margin-bottom:3px;}
+.turn-btn .tb-name{font-size:11px;font-weight:600;color:var(--t1);display:block;}
+.turn-btn .tb-hrs{font-size:10px;color:var(--t3);font-family:var(--mono);display:block;margin-top:1px;}
+.turn-btn.sel{border-color:rgba(0,229,192,.5);background:var(--gd);}
+.turn-btn.sel .tb-name{color:var(--g);}
+.pin-dots{display:flex;gap:10px;margin-bottom:14px;}
+.pin-dot{width:13px;height:13px;border-radius:50%;border:1px solid var(--b2);background:transparent;transition:all .15s;}
+.pin-dot.on{background:var(--g);border-color:var(--g);}
+.pinpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pk{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:15px;text-align:center;font-size:18px;font-weight:500;cursor:pointer;font-family:var(--mono);transition:all .1s;color:var(--t1);}
+.pk:active{background:var(--s3);transform:scale(.95);}
+.pk.del{font-size:13px;color:var(--t2);}
+.pin-err{color:var(--r);font-size:12px;text-align:center;margin-top:8px;min-height:16px;}
+.btn-login{width:100%;background:var(--g);color:#09090E;border:none;border-radius:var(--rad);padding:15px;font-family:var(--body);font-size:14px;font-weight:700;cursor:pointer;margin-top:10px;letter-spacing:.02em;transition:opacity .15s;}
+.btn-login:active{opacity:.85;}
+.pin-hint{margin-top:10px;text-align:center;font-size:10px;color:var(--t4);line-height:1.6;}
+
+/* ── CARDS ── */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radl);margin-bottom:10px;overflow:hidden;}
+.card-head{padding:14px 16px;display:flex;justify-content:space-between;align-items:flex-start;}
+.card-title{font-size:14px;font-weight:600;}
+.card-sub{font-size:11px;color:var(--t2);margin-top:2px;}
+.divider{border:none;border-top:1px solid var(--b1);}
+
+/* ── CHIPS ── */
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;letter-spacing:.04em;padding:3px 8px;border-radius:20px;}
+.cg{background:var(--gd);color:var(--g);}
+.cy{background:var(--yd);color:var(--y);}
+.cr{background:var(--rd);color:var(--r);}
+.cb{background:var(--bd);color:var(--b);}
+.cn{background:rgba(255,255,255,.06);color:var(--t2);}
+
+/* ── CHECKLIST ── */
+.chklist{border-top:1px solid var(--b1);}
+.chk-item{display:flex;align-items:flex-start;gap:11px;padding:12px 16px;border-bottom:1px solid var(--b1);cursor:pointer;transition:background .1s;}
+.chk-item:last-child{border-bottom:none;}
+.chk-item:active{background:var(--s2);}
+.chk-box{width:22px;height:22px;border-radius:6px;flex-shrink:0;border:1.5px solid var(--b2);display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;}
+.chk-box.on{background:var(--g);border-color:var(--g);}
+.chk-box svg{width:12px;height:12px;stroke:#09090E;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .15s;}
+.chk-box.on svg{opacity:1;}
+.chk-info{flex:1;min-width:0;}
+.chk-name{font-size:13px;font-weight:500;line-height:1.4;}
+.chk-name.done{color:var(--t3);text-decoration:line-through;text-decoration-color:var(--t4);}
+.chk-meta{font-size:10px;color:var(--t3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;}
+.chk-late{color:var(--r);}
+.chk-time{font-family:var(--mono);font-size:10px;color:var(--g);flex-shrink:0;margin-top:2px;}
+
+/* ── RING ── */
+.ring-wrap{position:relative;width:54px;height:54px;flex-shrink:0;}
+.ring-wrap svg{transform:rotate(-90deg);}
+.ring-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:700;}
+
+/* ── FIELDS ── */
+.flabel{font-size:10px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px;display:block;}
+textarea,input[type=text]{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:var(--rad);padding:11px 13px;font-family:var(--body);font-size:13px;color:var(--t1);resize:none;outline:none;transition:border-color .15s;line-height:1.5;}
+textarea:focus,input[type=text]:focus{border-color:rgba(0,229,192,.4);}
+textarea::placeholder,input::placeholder{color:var(--t4);}
+select{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:var(--rad);padding:11px 13px;font-family:var(--body);font-size:13px;color:var(--t1);outline:none;-webkit-appearance:none;cursor:pointer;}
+
+/* ── UPLOAD ── */
+.upzone{width:100%;background:var(--s2);border:1.5px dashed var(--b2);border-radius:var(--rad);padding:18px;text-align:center;cursor:pointer;font-family:var(--body);color:var(--t2);font-size:13px;transition:all .15s;position:relative;}
+.upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.upzone:hover{border-color:rgba(0,229,192,.35);color:var(--g);}
+.upzone-icon{font-size:24px;margin-bottom:5px;}
+.prevzone{display:none;border:1px solid var(--b1);border-radius:var(--rad);overflow:hidden;}
+.prevzone.on{display:block;}
+.prevzone img{width:100%;display:block;max-height:170px;object-fit:cover;}
+.prev-bar{padding:7px 12px;background:var(--s2);border-top:1px solid var(--b1);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--t2);}
+
+/* ── TIPO GRID ── */
+.tipo-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.tipo-opt{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:10px;text-align:center;font-size:12px;cursor:pointer;transition:all .15s;color:var(--t2);}
+.tipo-opt.t-novedad{background:var(--yd);border-color:rgba(255,184,48,.4);color:var(--y);}
+.tipo-opt.t-incidente{background:var(--rd);border-color:rgba(255,64,96,.4);color:var(--r);}
+.tipo-opt.t-visita{background:var(--bd);border-color:rgba(77,143,255,.4);color:var(--b);}
+.tipo-opt.t-normal{background:var(--gd);border-color:rgba(0,229,192,.4);color:var(--g);}
+
+/* ── INC CARD ── */
+.inc-card{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:12px;margin-bottom:8px;}
+.inc-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.inc-hora{font-family:var(--mono);font-size:10px;color:var(--t2);}
+.inc-desc{font-size:12px;color:var(--t2);line-height:1.5;margin-bottom:7px;}
+.inc-img{width:100%;border-radius:7px;max-height:150px;object-fit:cover;border:1px solid var(--b1);cursor:pointer;}
+
+/* ── BUTTONS ── */
+.btn-p{width:100%;background:var(--g);color:#09090E;border:none;border-radius:var(--rad);padding:14px;font-family:var(--body);font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.02em;transition:opacity .15s;margin-top:4px;}
+.btn-p:active{opacity:.85;}
+.btn-s{width:100%;background:var(--s2);color:var(--t1);border:1px solid var(--b2);border-radius:var(--rad);padding:12px;font-family:var(--body);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;margin-top:8px;}
+.btn-s:active{background:var(--s3);}
+.btn-sm{background:var(--s2);border:1px solid var(--b2);border-radius:7px;padding:5px 12px;font-size:11px;font-weight:500;color:var(--t1);cursor:pointer;font-family:var(--body);transition:all .15s;}
+.btn-sm:active{background:var(--s3);}
+.btn-danger{background:var(--rd);color:var(--r);border-color:rgba(255,64,96,.3);}
+.btn-accent{background:var(--gd);color:var(--g);border-color:rgba(0,229,192,.3);}
+
+/* ── DASHBOARD ── */
+.stat-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px;}
+.stat-box{background:var(--s1);border:1px solid var(--b1);border-radius:var(--rad);padding:13px 14px;}
+.stat-val{font-family:var(--mono);font-size:22px;font-weight:700;margin-bottom:2px;}
+.stat-lbl{font-size:11px;color:var(--t2);}
+.inst-row{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radl);margin-bottom:8px;overflow:hidden;cursor:pointer;transition:border-color .15s;}
+.inst-row:active{border-color:var(--b3);}
+.inst-row-head{padding:13px 15px;display:flex;align-items:center;gap:12px;}
+.ir-icon{width:38px;height:38px;border-radius:10px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.ir-info{flex:1;min-width:0;}
+.ir-name{font-size:14px;font-weight:600;}
+.ir-sub{font-size:11px;color:var(--t2);margin-top:1px;}
+.ir-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;}
+.ir-pct{font-family:var(--mono);font-size:16px;font-weight:700;}
+.turn-pills{display:flex;gap:5px;padding:0 15px 12px;}
+.turn-pill{flex:1;background:var(--s2);border-radius:8px;padding:7px 6px;text-align:center;}
+.tp-label{font-size:9px;color:var(--t3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;}
+.tp-val{font-size:12px;font-weight:600;margin-top:2px;}
+.tp-val.ok{color:var(--g);}
+.tp-val.mid{color:var(--y);}
+.tp-val.bad{color:var(--r);}
+.tp-val.none{color:var(--t4);}
+
+/* ── DETALLE INSTALACION ── */
+.turn-detail-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radl);margin-bottom:10px;overflow:hidden;}
+.tdc-head{padding:13px 15px;display:flex;justify-content:space-between;align-items:center;}
+.tdc-name{font-size:14px;font-weight:600;}
+.tdc-resp{font-size:11px;color:var(--t2);margin-top:1px;}
+.tdc-checks{padding:0 15px 12px;display:flex;flex-direction:column;gap:5px;}
+.tdc-chk{display:flex;align-items:center;gap:7px;font-size:12px;}
+.tdc-chk svg{width:14px;height:14px;flex-shrink:0;}
+.tdc-note{margin:0 15px 12px;background:var(--s2);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--t2);line-height:1.5;}
+.tdc-incs{margin:0 15px 12px;display:flex;flex-wrap:wrap;gap:5px;}
+.tdc-imgs{display:flex;gap:6px;padding:0 15px 12px;overflow-x:auto;}
+.tdc-thumb{width:52px;height:52px;border-radius:7px;object-fit:cover;border:1px solid var(--b1);flex-shrink:0;cursor:pointer;}
+
+/* ── DESEMPEÑO ── */
+.resp-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radl);margin-bottom:10px;overflow:hidden;}
+.rc-head{padding:13px 15px;display:flex;align-items:center;gap:12px;}
+.rc-avatar{width:40px;height:40px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid var(--b2);}
+.rc-info{flex:1;}
+.rc-name{font-size:14px;font-weight:600;}
+.rc-inst{font-size:11px;color:var(--t2);}
+.rc-stats{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--b1);}
+.rc-stat{padding:10px;text-align:center;border-right:1px solid var(--b1);}
+.rc-stat:last-child{border-right:none;}
+.rc-sv{font-family:var(--mono);font-size:16px;font-weight:700;}
+.rc-sl{font-size:10px;color:var(--t3);margin-top:2px;}
+.streak-bar{padding:8px 15px 12px;display:flex;gap:4px;}
+.streak-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+
+/* ── ADMIN ── */
+.admin-section{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radl);margin-bottom:10px;overflow:hidden;}
+.as-head{padding:13px 15px;border-bottom:1px solid var(--b1);display:flex;justify-content:space-between;align-items:center;}
+.as-title{font-size:13px;font-weight:600;}
+.act-admin-row{display:flex;align-items:flex-start;gap:10px;padding:11px 15px;border-bottom:1px solid var(--b1);}
+.act-admin-row:last-child{border-bottom:none;}
+.act-admin-info{flex:1;min-width:0;}
+.act-admin-name{font-size:13px;font-weight:500;}
+.act-admin-meta{font-size:11px;color:var(--t3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;}
+.act-admin-actions{display:flex;gap:6px;flex-shrink:0;}
+.resp-admin-row{display:flex;align-items:center;gap:10px;padding:11px 15px;border-bottom:1px solid var(--b1);}
+.resp-admin-row:last-child{border-bottom:none;}
+.ra-avatar{width:32px;height:32px;border-radius:50%;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.ra-info{flex:1;min-width:0;}
+.ra-name{font-size:13px;font-weight:500;}
+.ra-meta{font-size:11px;color:var(--t3);margin-top:1px;}
+.pin-badge{font-family:var(--mono);font-size:11px;background:var(--s3);border:1px solid var(--b2);border-radius:5px;padding:2px 7px;color:var(--t2);}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:200;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .2s;}
+.modal-bg.on{opacity:1;pointer-events:all;}
+.modal-box{background:var(--s1);border-radius:20px 20px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding:18px 18px 32px;transform:translateY(40px);transition:transform .25s;border-top:1px solid var(--b2);}
+.modal-bg.on .modal-box{transform:translateY(0);}
+.modal-handle{width:36px;height:4px;background:var(--b2);border-radius:2px;margin:0 auto 16px;}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:14px;}
+.modal-field{margin-bottom:12px;}
+.modal-actions{display:flex;gap:8px;margin-top:14px;}
+.modal-actions .btn-p{margin-top:0;}
+.modal-actions .btn-s{margin-top:0;}
+
+/* ── NOTIF MODAL ── */
+.notif-card{background:var(--s2);border:1px solid var(--b1);border-radius:var(--rad);padding:13px;margin-bottom:10px;}
+.notif-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+.notif-desc{font-size:12px;color:var(--t2);margin-bottom:10px;line-height:1.5;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.toggle-lbl{font-size:13px;}
+.toggle{width:42px;height:24px;background:var(--s3);border-radius:12px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;border:none;}
+.toggle.on{background:var(--g);}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;}
+.toggle.on::after{transform:translateX(18px);}
+
+/* ── TOAST / FULLIMG ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--s1);border:1px solid var(--b2);color:var(--t1);padding:9px 18px;border-radius:20px;font-size:13px;z-index:500;opacity:0;transition:all .25s;white-space:nowrap;pointer-events:none;}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+.imgfull{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:600;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;}
+.imgfull.on{opacity:1;pointer-events:all;}
+.imgfull img{max-width:96vw;max-height:90vh;border-radius:10px;object-fit:contain;}
+.imgfull-close{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.1);border:none;border-radius:50%;width:34px;height:34px;font-size:16px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+/* ── BANNER ── */
+.banner{background:var(--gd);border:1px solid rgba(0,229,192,.2);border-radius:var(--rad);padding:11px 13px;margin-bottom:12px;display:flex;align-items:flex-start;gap:9px;font-size:12px;color:var(--g);line-height:1.5;}
+.banner svg{width:16px;height:16px;stroke:var(--g);flex-shrink:0;margin-top:1px;}
+.banner-warn{background:var(--yd);border-color:rgba(255,184,48,.2);color:var(--y);}
+.banner-warn svg{stroke:var(--y);}
+
+/* ── EXPORT ── */
+.export-card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--radl);padding:15px;margin-bottom:10px;}
+.export-title{font-size:14px;font-weight:600;margin-bottom:4px;}
+.export-desc{font-size:12px;color:var(--t2);margin-bottom:12px;line-height:1.5;}
+
+/* ── MISC ── */
+.section-lbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--t4);text-transform:uppercase;margin:18px 0 9px;}
+.section-lbl:first-child{margin-top:0;}
+.empty{font-size:12px;color:var(--t4);text-align:center;padding:24px 0;}
+.frow{display:flex;gap:10px;}
+.frow>*{flex:1;}
+input[type=time]{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:var(--rad);padding:11px 13px;font-family:var(--mono);font-size:13px;color:var(--t1);outline:none;transition:border-color .15s;}
+input[type=time]:focus{border-color:rgba(0,229,192,.4);}
+.freq-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.freq-btn{background:var(--s2);border:1px solid var(--b1);border-radius:8px;padding:8px;text-align:center;font-size:11px;cursor:pointer;transition:all .15s;color:var(--t2);}
+.freq-btn.sel{background:var(--gd);border-color:rgba(0,229,192,.4);color:var(--g);}
+
+/* Desktop sidebar nav item */
+.dsi{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;font-size:13px;font-weight:500;color:var(--t2);border-left:2px solid transparent;transition:all .15s;}
+.dsi:hover{background:var(--s2);color:var(--t1);}
+.dsi.on{color:var(--g);border-left-color:var(--g);background:var(--gd2);}
+.dsi svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+
+@media all and (display-mode: standalone) {
+  body { padding-top: env(safe-area-inset-top); }
+  #root { padding-bottom: env(safe-area-inset-bottom); }
+}
+</style>
+</head>
+<body>
+<div id="root">
+
+<!-- ══════════ LOGIN ══════════ -->
+<div class="screen on" id="scr-login">
+  <div class="scroll">
+    <div class="login-mark"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+    <div class="login-h">Protección y Seguridad</div>
+    <div class="login-p">Selecciona tu instalación y turno, luego ingresa tu PIN.</div>
+    <div class="sec-label">Instalación</div>
+    <div class="inst-grid" id="inst-grid"></div>
+    <div class="sec-label">Turno</div>
+    <div class="turn-grid" id="turn-grid"></div>
+    <div class="sec-label">PIN de acceso</div>
+    <div class="pin-dots" id="pin-dots"><div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div><div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div></div>
+    <div class="pinpad">
+      <div class="pk" onclick="pk('1')">1</div><div class="pk" onclick="pk('2')">2</div><div class="pk" onclick="pk('3')">3</div>
+      <div class="pk" onclick="pk('4')">4</div><div class="pk" onclick="pk('5')">5</div><div class="pk" onclick="pk('6')">6</div>
+      <div class="pk" onclick="pk('7')">7</div><div class="pk" onclick="pk('8')">8</div><div class="pk" onclick="pk('9')">9</div>
+      <div class="pk"></div><div class="pk" onclick="pk('0')">0</div><div class="pk del" onclick="pkd()">⌫</div>
+    </div>
+    <div class="pin-err" id="pin-err"></div>
+    <button class="btn-login" onclick="doLogin()">Ingresar al sistema</button>
+
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div class="screen" id="scr-app">
+  <!-- ══ DESKTOP SIDEBAR ══ -->
+  <div id="desk-sidebar" style="display:none;padding:0;">
+    <div style="padding:20px 20px 18px;border-bottom:1px solid var(--b1);">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--g);text-transform:uppercase;margin-bottom:4px;">⬡ PYSCPR</div>
+      <div style="font-size:14px;font-weight:700;">Protección y Seguridad</div>
+      <div style="font-size:11px;color:var(--t2);margin-top:3px;" id="sb-desk-name">—</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--g);margin-top:6px;" id="sb-desk-clock">00:00</div>
+    </div>
+    <div style="padding:12px 0;flex:1;" id="desk-nav-items"></div>
+    <div style="padding:12px 16px;border-top:1px solid var(--b1);">
+      <button onclick="doLogout()" style="width:100%;background:var(--rd);color:var(--r);border:1px solid rgba(255,64,96,.3);border-radius:8px;padding:9px;font-family:var(--body);font-size:12px;font-weight:600;cursor:pointer;">Cerrar sesión</button>
+    </div>
+  </div>
+  <div class="topbar" id="topbar">
+    <div class="topbar-left">
+      <div class="back-btn" id="back-btn" style="display:none" onclick="goBack()">←</div>
+      <div class="topbar-info">
+        <div class="topbar-title" id="tb-title">—</div>
+        <div class="topbar-sub" id="tb-sub">—</div>
+      </div>
+    </div>
+    <div class="clock-badge" id="clock-badge">00:00</div>
+  </div>
+  <div class="sesbar" id="sesbar">
+    <div class="sesbar-info">Sesión: <strong id="sb-name">—</strong></div>
+    <button class="btn-xs" onclick="doLogout()">Salir</button>
+  </div>
+
+  <div class="scroll" id="main-scroll">
+
+    <!-- REPORTE VIEW -->
+    <div id="v-reporte">
+      <div id="v-banner" style="display:none"></div>
+
+      <!-- Tab bar -->
+      <div style="display:flex;gap:0;background:var(--s1);border:1px solid var(--b1);border-radius:var(--rad);overflow:hidden;margin-bottom:14px;flex-shrink:0;">
+        <button id="tab-chk" onclick="switchTab('chk')" style="flex:1;padding:11px 8px;border:none;background:var(--g);color:#09090E;font-family:var(--body);font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.03em;transition:all .15s;">
+          ✓ Checklist
+        </button>
+        <button id="tab-cierre" onclick="switchTab('cierre')" style="flex:1;padding:11px 8px;border:none;background:transparent;color:var(--t2);font-family:var(--body);font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.03em;transition:all .15s;" id="tab-cierre">
+          📋 Cerrar turno
+        </button>
+      </div>
+
+      <!-- TAB 1: CHECKLIST -->
+      <div id="tab-content-chk">
+        <div class="card">
+          <div class="card-head">
+            <div><div class="card-title">Actividades del turno</div><div class="card-sub" id="chk-prog-lbl">0 de 0</div></div>
+            <div class="ring-wrap">
+              <svg width="54" height="54" viewBox="0 0 54 54">
+                <circle cx="27" cy="27" r="21" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="4"/>
+                <circle id="ring-c" cx="27" cy="27" r="21" fill="none" stroke="var(--g)" stroke-width="4"
+                  stroke-dasharray="131.9" stroke-dashoffset="131.9" stroke-linecap="round"/>
+              </svg>
+              <div class="ring-center" id="ring-pct">0%</div>
+            </div>
+          </div>
+          <div class="chklist" id="chk-list"></div>
+        </div>
+        <div id="chk-late-summary" style="display:none" class="banner banner-warn" style="margin-top:4px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div id="chk-late-text"></div>
+        </div>
+        <div style="height:16px"></div>
+      </div>
+
+      <!-- TAB 2: CERRAR TURNO -->
+      <div id="tab-content-cierre" style="display:none">
+        <div id="cierre-bloqueado" style="display:none">
+          <div class="banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div id="cierre-bloqueado-msg">Reporte ya enviado para este turno.</div>
+          </div>
+        </div>
+        <div id="cierre-form">
+          <div class="card" style="padding:13px 15px;margin-bottom:10px;">
+            <label class="flabel">Resumen del turno</label>
+            <textarea id="f-resumen" rows="3" placeholder="Describe brevemente lo más importante del turno..."></textarea>
+          </div>
+          <div class="section-lbl" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Incidentes / Novedades</span>
+            <button class="btn-sm btn-accent" onclick="openIncModal()">+ Agregar</button>
+          </div>
+          <div id="inc-list"><div class="empty">Sin incidentes registrados</div></div>
+          <div id="cierre-aviso-tiempo" style="display:none;margin-top:10px;"></div>
+          <button class="btn-p" style="margin-top:12px" onclick="cerrarTurno()">Cerrar y enviar reporte ✓</button>
+        </div>
+        <div style="height:16px"></div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD VIEW -->
+    <div id="v-dashboard" style="display:none">
+      <div class="section-lbl">Resumen del día · <span id="dash-fecha"></span></div>
+      <div class="stat-row desk-grid-4" style="display:grid;">
+        <div class="stat-box"><div class="stat-val" id="ds-inst">0/6</div><div class="stat-lbl">Instalaciones activas</div></div>
+        <div class="stat-box"><div class="stat-val" id="ds-pct">—</div><div class="stat-lbl">Cumplimiento promedio</div></div>
+        <div class="stat-box"><div class="stat-val" id="ds-reps">0/18</div><div class="stat-lbl">Reportes recibidos</div></div>
+        <div class="stat-box"><div class="stat-val" id="ds-incs">0</div><div class="stat-lbl">Incidentes hoy</div></div>
+      </div>
+      <div class="section-lbl">Por instalación</div>
+      <div id="inst-dash-list" class="desk-grid-3" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
+      <div style="height:16px"></div>
+    </div>
+
+    <!-- DETALLE INSTALACION -->
+    <div id="v-detalle" style="display:none">
+      <div id="detalle-content"></div>
+      <div style="height:16px"></div>
+    </div>
+
+    <!-- DESEMPEÑO VIEW -->
+    <div id="v-desempeno" style="display:none">
+      <div class="section-lbl">Desempeño por responsable · últimos 7 días</div>
+      <div id="desemp-list" class="desk-grid-3" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
+      <div style="height:16px"></div>
+    </div>
+
+    <!-- HISTORIAL VIEW -->
+    <div id="v-historial" style="display:none">
+      <div class="section-lbl">Todos los reportes</div>
+      <div id="hist-list" class="desk-grid-2" style="display:grid;grid-template-columns:1fr;gap:10px;"></div>
+      <div style="height:16px"></div>
+    </div>
+
+    <!-- ADMIN VIEW -->
+    <div id="v-admin" style="display:none">
+      <div class="section-lbl">Notificaciones</div>
+      <div class="admin-section">
+        <div class="as-head"><div class="as-title">Configuración de alertas</div></div>
+        <div style="padding:13px 15px">
+          <div class="notif-card">
+            <div class="notif-title">🔔 Notificación del navegador</div>
+            <div class="notif-desc">Recibe una alerta en este dispositivo cuando un turno no cierra reporte a tiempo.</div>
+            <button class="btn-sm btn-accent" onclick="setupBrowserNotif()">Activar notificaciones</button>
+          </div>
+          <div class="notif-card">
+            <div class="notif-title">✈️ Telegram</div>
+            <div class="notif-desc">Para recibir alertas en Telegram sigue estos pasos:<br><br>1. Abre Telegram y busca <strong>@BotFather</strong><br>2. Escribe <strong>/newbot</strong> y sigue las instrucciones<br>3. Copia el token que te da y pégalo aquí<br>4. Escribe a tu bot para obtener tu chat ID</div>
+            <div class="modal-field" style="margin-bottom:8px"><label class="flabel">Token del bot</label><input type="text" id="tg-token" placeholder="123456:ABC-DEF1234..."></div>
+            <div class="modal-field" style="margin-bottom:8px"><label class="flabel">Tu Chat ID</label><input type="text" id="tg-chatid" placeholder="123456789"></div>
+            <button class="btn-sm btn-accent" onclick="saveTelegramCfg()">Guardar y probar</button>
+          </div>
+
+      <div class="notif-card" style="margin-top:10px;">
+        <div class="notif-title">🔐 PIN del Supervisor</div>
+        <div class="notif-desc">Este PIN te da acceso al dashboard general y al panel de administración. Cámbialo por uno seguro que solo tú conozcas.</div>
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <div style="flex:1;">
+            <label class="flabel">Nuevo PIN (4 dígitos)</label>
+            <input type="password" id="sup-pin-input" maxlength="4" placeholder="••••" style="font-family:var(--mono);letter-spacing:.2em;text-align:center;font-size:18px;">
+          </div>
+          <button class="btn-sm btn-accent" onclick="saveSupPin()" style="margin-bottom:1px;padding:10px 16px;">Guardar</button>
+        </div>
+        <div style="font-size:11px;color:var(--t3);margin-top:8px;">PIN actual: <span id="sup-pin-dots">••••</span></div>
+      </div>
+        </div>
+      </div>
+
+      <div class="section-lbl">Actividades del checklist</div>
+      <div class="admin-section">
+        <div class="as-head"><div class="as-title">Actividades comunes (todas las instalaciones)</div><button class="btn-sm btn-accent" onclick="openActModal(null,'comun')">+ Nueva</button></div>
+        <div id="admin-acts-comun"></div>
+      </div>
+      <div id="admin-acts-por-inst"></div>
+
+      <div class="section-lbl">Responsables y PINs</div>
+      <div id="admin-resps"></div>
+
+      <div class="section-lbl">Exportar datos</div>
+      <div class="export-card">
+        <div class="export-title">📊 Exportar a Excel</div>
+        <div class="export-desc">Descarga todos los reportes con área, responsable, fecha, turno, porcentaje de cumplimiento, actividades y descripción de incidentes.</div>
+        <button class="btn-sm btn-accent" onclick="exportExcel()">Descargar Excel</button>
+      </div>
+      <div class="export-card">
+        <div class="export-title">📦 Exportar evidencias (ZIP)</div>
+        <div class="export-desc">Descarga todas las fotos adjuntas organizadas por instalación, fecha y turno.</div>
+        <button class="btn-sm btn-accent" onclick="exportZip()">Descargar ZIP de fotos</button>
+      </div>
+      <div style="height:16px"></div>
+    </div>
+
+  </div><!-- /scroll -->
+
+  <!-- BOTTOM NAV RESPONSABLE -->
+  <nav class="bnav" id="bnav-resp" style="display:none">
+    <button class="bni on" onclick="navResp('reporte',0)">
+      <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Reporte
+    </button>
+    <button class="bni" onclick="navResp('historial',1)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Historial
+    </button>
+  </nav>
+
+  <!-- BOTTOM NAV SUPERVISOR -->
+  <nav class="bnav" id="bnav-sup" style="display:none">
+    <button class="bni on" onclick="navSup('dashboard',0)">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard
+    </button>
+    <button class="bni" onclick="navSup('desempeno',1)">
+      <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Desempeño
+    </button>
+    <button class="bni" onclick="navSup('historial',2)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Historial
+    </button>
+    <button class="bni" onclick="navSup('admin',3)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/></svg>Admin
+    </button>
+  </nav>
+</div>
+
+</div><!-- /root -->
+
+<!-- ══ LOADER ══ -->
+<div class="screen" id="scr-loader" style="align-items:center;justify-content:center;gap:16px;">
+  <div style="width:40px;height:40px;border:3px solid var(--b2);border-top-color:var(--g);border-radius:50%;animation:spin .8s linear infinite;"></div>
+  <div id="loader-msg" style="font-size:13px;color:var(--t2);">Conectando...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+
+<!-- Incidente -->
+<div class="modal-bg" id="m-inc">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Registrar novedad / incidente</div>
+    <label class="flabel">Tipo</label>
+    <div class="tipo-grid">
+      <div class="tipo-opt" data-tipo="novedad" onclick="selTipo('novedad')">📋 Novedad</div>
+      <div class="tipo-opt" data-tipo="incidente" onclick="selTipo('incidente')">⚠️ Incidente</div>
+      <div class="tipo-opt" data-tipo="visita" onclick="selTipo('visita')">👤 Visita</div>
+      <div class="tipo-opt" data-tipo="normal" onclick="selTipo('normal')">✅ Sin novedad</div>
+    </div>
+    <div class="modal-field"><label class="flabel">Descripción</label><textarea id="m-inc-desc" rows="3" placeholder="Describe brevemente..."></textarea></div>
+    <div class="modal-field">
+      <label class="flabel">Evidencia (foto opcional)</label>
+      <div class="upzone" id="m-inc-upzone"><input type="file" accept="image/*" capture="environment" onchange="handleIncImg(this)"><div class="upzone-icon">📷</div><div>Tomar foto o elegir imagen</div></div>
+      <div class="prevzone" id="m-inc-prev"><img id="m-inc-prev-img" src="" alt="prev"><div class="prev-bar"><span id="m-inc-prev-name"></span><button style="background:none;border:none;color:var(--r);font-size:11px;cursor:pointer;font-family:var(--body);" onclick="removeIncImg()">✕ Quitar</button></div></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-s" style="margin-top:0" onclick="closeMod('m-inc')">Cancelar</button>
+      <button class="btn-p" style="margin-top:0" onclick="saveIncidente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Actividad admin modal -->
+<div class="modal-bg" id="m-act">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="m-act-title">Nueva actividad</div>
+    <div class="modal-field"><label class="flabel">Nombre</label><input type="text" id="m-act-name" placeholder="Ej. Ronda perimetral norte"></div>
+    <div class="modal-field">
+      <label class="flabel">Frecuencia</label>
+      <div class="freq-grid" id="m-act-freq">
+        <div class="freq-btn sel" data-freq="diaria" onclick="selFreq('diaria')">📅 Diaria</div>
+        <div class="freq-btn" data-freq="semanal" onclick="selFreq('semanal')">📆 Semanal (lunes)</div>
+        <div class="freq-btn" data-freq="quincenal" onclick="selFreq('quincenal')">🗓 Quincenal</div>
+        <div class="freq-btn" data-freq="mensual" onclick="selFreq('mensual')">📋 Mensual (día 1)</div>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label class="flabel">Turno(s) donde aplica</label>
+      <div class="freq-grid" id="m-act-turnos">
+        <div class="freq-btn sel" data-t="matutino" onclick="toggleActTurn('matutino')">🌅 Matutino</div>
+        <div class="freq-btn sel" data-t="vespertino" onclick="toggleActTurn('vespertino')">🌆 Vespertino</div>
+        <div class="freq-btn sel" data-t="nocturno" onclick="toggleActTurn('nocturno')">🌙 Nocturno</div>
+      </div>
+    </div>
+    <div class="modal-field frow">
+      <div><label class="flabel">Hora límite</label><input type="time" id="m-act-time" value="08:00"></div>
+      <div><label class="flabel">Instalación</label>
+        <select id="m-act-inst">
+          <option value="comun">Todas</option>
+          <option value="ceuta">Ceuta</option>
+          <option value="bellavista">Bellavista</option>
+          <option value="caimanes">Caimanes</option>
+          <option value="campo5">Campo 5</option>
+          <option value="tayoltita">Tayoltita</option>
+          <option value="capule">Capule</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-s" style="margin-top:0" onclick="closeMod('m-act')">Cancelar</button>
+      <button class="btn-p" style="margin-top:0" onclick="saveAct()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Responsable admin modal -->
+<div class="modal-bg" id="m-resp">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="m-resp-title">Editar responsable</div>
+    <input type="hidden" id="m-resp-idx">
+    <div class="modal-field"><label class="flabel">Nombre</label><input type="text" id="m-resp-name" placeholder="Nombre completo"></div>
+    <div class="modal-field"><label class="flabel">PIN (4 dígitos)</label><input type="text" id="m-resp-pin" placeholder="1234" maxlength="4" style="font-family:var(--mono)"></div>
+    <div class="modal-field"><label class="flabel">Instalación</label>
+      <select id="m-resp-inst">
+        <option value="ceuta">Ceuta</option><option value="bellavista">Bellavista</option>
+        <option value="caimanes">Caimanes</option><option value="campo5">Campo 5</option>
+        <option value="tayoltita">Tayoltita</option><option value="capule">Capule</option>
+      </select>
+    </div>
+    <div class="modal-field"><label class="flabel">Turno actual</label>
+      <select id="m-resp-turn">
+        <option value="matutino">🌅 Matutino (6am-2pm)</option>
+        <option value="vespertino">🌆 Vespertino (2pm-10pm)</option>
+        <option value="nocturno">🌙 Nocturno (10pm-6am)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-s" style="margin-top:0" onclick="closeMod('m-resp')">Cancelar</button>
+      <button class="btn-p" style="margin-top:0" onclick="saveResp()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-bg" id="m-del">
+  <div class="modal-box">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Eliminar reporte</div>
+    <input type="hidden" id="del-modal-id">
+    <div style="background:var(--rd);border:1px solid rgba(255,64,96,.25);border-radius:var(--rad);padding:13px;margin-bottom:16px;">
+      <div style="font-size:12px;color:var(--r);font-weight:600;margin-bottom:4px;">⚠ Esta acción es permanente</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.5;">Se eliminará el reporte de:</div>
+      <div style="font-size:13px;color:var(--t1);font-weight:500;margin-top:6px;" id="del-modal-info">—</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-s" style="margin-top:0" onclick="closeMod('m-del')">Cancelar</button>
+      <button style="flex:1;background:var(--r);color:#fff;border:none;border-radius:var(--rad);padding:13px;font-family:var(--body);font-size:13px;font-weight:700;cursor:pointer;" onclick="deleteReporte()">Eliminar definitivamente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen image -->
+<div class="imgfull" id="imgfull" onclick="document.getElementById('imgfull').classList.remove('on')">
+  <button class="imgfull-close">✕</button>
+  <img id="imgfull-src" src="" alt="">
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════
+const INSTALACIONES = [
+  {id:'ceuta',    name:'Ceuta',      icon:'🏗'},
+  {id:'bellavista',name:'Bellavista',icon:'🏢'},
+  {id:'caimanes', name:'Caimanes',   icon:'🌿'},
+  {id:'campo5',   name:'Campo 5',    icon:'⛺'},
+  {id:'tayoltita',name:'Tayoltita',  icon:'⛰'},
+  {id:'capule',   name:'Capule',     icon:'🏭'},
+];
+const TURNOS_CFG = [
+  {id:'matutino',  label:'Matutino',  icon:'🌅', start:'06:00', end:'14:00'},
+  {id:'vespertino',label:'Vespertino',icon:'🌆', start:'14:00', end:'22:00'},
+  {id:'nocturno',  label:'Nocturno',  icon:'🌙', start:'22:00', end:'06:00'},
+];
+const EMOJIS = ['👤','👮','🛡','🔒','⚡','🎯'];
+
+let DB = {
+  responsables: [],
+  actividades: [],
+  reportes: [],      // live-synced from Firestore
+  tgToken: '',
+  tgChatId: '',
+  notifEnabled: false,
+  supPin: '0000',    // supervisor PIN — change in Admin
+};
+
+// ── DEFAULT DATA ──
+function defaultResponsables() {
+  const list = [];
+  INSTALACIONES.forEach(inst => {
+    TURNOS_CFG.forEach(t => {
+      const names = ['Carlos Pérez','Ana Gómez','Luis Ramos'];
+      list.push({
+        id: `r_${inst.id}_${t.id}`,
+        name: names[TURNOS_CFG.indexOf(t)],
+        pin: `${TURNOS_CFG.indexOf(t)+1}${TURNOS_CFG.indexOf(t)+1}${TURNOS_CFG.indexOf(t)+1}${TURNOS_CFG.indexOf(t)+1}`,
+        inst: inst.id, turn: t.id,
+        emoji: EMOJIS[TURNOS_CFG.indexOf(t) % EMOJIS.length],
+      });
+    });
+  });
+  return list;
+}
+function defaultActividades() {
+  return [
+    {id:'act_0', name:'Ronda de vigilancia perimetral',    freq:'diaria', turnos:['matutino','vespertino','nocturno'], timeLimit:'', inst:'comun'},
+    {id:'act_1', name:'Control de acceso / visitantes',    freq:'diaria', turnos:['matutino','vespertino','nocturno'], timeLimit:'', inst:'comun'},
+    {id:'act_2', name:'Reporte de novedades / incidentes', freq:'diaria', turnos:['matutino','vespertino','nocturno'], timeLimit:'', inst:'comun'},
+    {id:'act_3', name:'Entrega-recepción de turno',        freq:'diaria', turnos:['matutino','vespertino','nocturno'], timeLimit:'', inst:'comun'},
+    {id:'act_4', name:'Revisión de instalaciones',         freq:'diaria', turnos:['matutino','vespertino','nocturno'], timeLimit:'', inst:'comun'},
+  ];
+}
+
+// ── LOADING SCREEN ──
+function showLoader(msg) {
+  document.getElementById('loader-msg').textContent = msg||'Conectando...';
+  document.getElementById('scr-loader').classList.add('on');
+}
+function hideLoader() { document.getElementById('scr-loader').classList.remove('on'); }
+
+// ── INIT DB (Firebase + localStorage fallback) ──
+let unsubReportes = null;
+
+async function initDB() {
+  showLoader('Cargando configuración...');
+  // Always load config from Firebase if available, else localStorage
+  if (window.FB_READY) {
+    await loadConfigFromFirebase();
+  } else {
+    // Wait up to 4s for Firebase to initialize
+    await new Promise(resolve => {
+      const timeout = setTimeout(() => resolve(), 4000);
+      window.addEventListener('fb-ready', async () => {
+        clearTimeout(timeout);
+        await loadConfigFromFirebase();
+        resolve();
+      }, { once: true });
+    });
+  }
+  hideLoader();
+  renderLogin();
+}
+
+async function loadConfigFromFirebase() {
+  try {
+    const [resps, acts, settings] = await Promise.all([
+      window.FB.getConfig('responsables'),
+      window.FB.getConfig('actividades'),
+      window.FB.getConfig('settings'),
+    ]);
+    DB.responsables = resps || defaultResponsables();
+    DB.actividades  = acts  || defaultActividades();
+    if (settings) {
+      DB.tgToken      = settings.tgToken      || '';
+      DB.tgChatId     = settings.tgChatId     || '';
+      DB.notifEnabled = settings.notifEnabled  || false;
+      DB.supPin       = settings.supPin        || '0000';
+    }
+    // If first run, push defaults to Firebase
+    if (!resps) await window.FB.setConfig('responsables', DB.responsables);
+    if (!acts)  await window.FB.setConfig('actividades',  DB.actividades);
+  } catch(e) {
+    console.warn('Firebase config error, using localStorage fallback', e);
+    loadLocalFallback();
+  }
+}
+function loadLocalFallback() {
+  try {
+    const stored = localStorage.getItem('ps_db');
+    if (stored) { const d = JSON.parse(stored); DB.responsables=d.responsables||defaultResponsables(); DB.actividades=d.actividades||defaultActividades(); DB.tgToken=d.tgToken||''; DB.tgChatId=d.tgChatId||''; }
+    else { DB.responsables=defaultResponsables(); DB.actividades=defaultActividades(); }
+  } catch(e) { DB.responsables=defaultResponsables(); DB.actividades=defaultActividades(); }
+}
+
+// ── SAVE CONFIG to Firebase (responsables, actividades, settings) ──
+async function saveConfig() {
+  if (window.FB_READY) {
+    await Promise.all([
+      window.FB.setConfig('responsables', DB.responsables),
+      window.FB.setConfig('actividades',  DB.actividades),
+      window.FB.setConfig('settings', { tgToken: DB.tgToken, tgChatId: DB.tgChatId, notifEnabled: DB.notifEnabled, supPin: DB.supPin }),
+    ]);
+  }
+  // Also persist locally as fallback
+  try { localStorage.setItem('ps_db', JSON.stringify(DB)); } catch(e){}
+}
+// Keep saveDB as alias for config only (reportes go directly to Firestore)
+function saveDB() { saveConfig(); }
+
+// ── SUBSCRIBE to live reportes ──
+function subscribeReportes() {
+  if (!window.FB_READY) return;
+  if (unsubReportes) unsubReportes();
+  unsubReportes = window.FB.listenReportes(reps => {
+    DB.reportes = reps;
+    // Re-render whatever view is active
+    if (SESSION?.role === 'supervisor') {
+      const active = document.querySelector('#bnav-sup .bni.on');
+      if (active) {
+        const idx = [...document.querySelectorAll('#bnav-sup .bni')].indexOf(active);
+        if (idx===0) renderDashboard();
+        if (idx===2) renderHistorial(false);
+      }
+    }
+    if (SESSION?.role === 'responsable') {
+      // Re-check if turno was already sent (from another device)
+      renderCierreTab();
+    }
+  });
+}
+
+// ════════════════════════════════════════
+// SESSION
+// ════════════════════════════════════════
+let SESSION = null;
+let pinVal = '';
+let selInst = null, selTurn = null;
+
+function renderLogin() {
+  const ig = document.getElementById('inst-grid');
+  ig.innerHTML = INSTALACIONES.map(i =>
+    `<div class="inst-btn${selInst===i.id?' sel':''}" data-inst="${i.id}" onclick="selInstFn('${i.id}')">
+      <div class="ib-icon">${i.icon}</div><span class="ib-name">${i.name}</span>
+    </div>`).join('');
+  const tg = document.getElementById('turn-grid');
+  tg.innerHTML = TURNOS_CFG.map(t =>
+    `<div class="turn-btn${selTurn===t.id?' sel':''}" data-turn="${t.id}" onclick="selTurnFn('${t.id}')">
+      <div class="tb-icon">${t.icon}</div><span class="tb-name">${t.label}</span><span class="tb-hrs">${t.start}–${t.end}</span>
+    </div>`).join('');
+}
+function selInstFn(id) { selInst = id; renderLogin(); }
+function selTurnFn(id) { selTurn = id; renderLogin(); }
+function pk(k) { if(pinVal.length>=4) return; pinVal+=k; updateDots(); }
+function pkd() { pinVal=pinVal.slice(0,-1); updateDots(); }
+function updateDots() { for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('on', i<pinVal.length); }
+function doLogin() {
+  const err = document.getElementById('pin-err');
+  if (!selInst) { err.textContent='Selecciona la instalación'; return; }
+  if (!selTurn) { err.textContent='Selecciona el turno'; return; }
+  if (pinVal.length<4) { err.textContent='Ingresa los 4 dígitos'; return; }
+  const supPin = DB.supPin || '0000';
+  if (pinVal===supPin) { SESSION={role:'supervisor',inst:selInst,turn:selTurn}; initApp(); return; }
+  const resp = DB.responsables.find(r => r.inst===selInst && r.turn===selTurn && r.pin===pinVal);
+  if (!resp) { err.textContent='PIN incorrecto'; pinVal=''; updateDots(); return; }
+  SESSION={role:'responsable',inst:selInst,turn:selTurn,resp}; initApp();
+}
+function doLogout() {
+  SESSION=null; pinVal=''; selInst=null; selTurn=null;
+  stateR={checks:{},incidentes:[],incImgData:null,selectedTipo:null};
+  document.getElementById('pin-err').textContent='';
+  updateDots(); renderLogin();
+  document.getElementById('scr-app').classList.remove('on');
+  document.getElementById('scr-login').classList.add('on');
+}
+
+// ════════════════════════════════════════
+// APP INIT
+// ════════════════════════════════════════
+function initApp() {
+  document.getElementById('scr-login').classList.remove('on');
+  document.getElementById('scr-app').classList.add('on');
+  const inst = INSTALACIONES.find(i=>i.id===SESSION.inst);
+  const turn = TURNOS_CFG.find(t=>t.id===SESSION.turn);
+  if (SESSION.role==='responsable') {
+    document.getElementById('tb-title').textContent = `${inst.icon} ${inst.name}`;
+    document.getElementById('tb-sub').textContent = `Turno ${turn.label} · ${turn.start}–${turn.end}`;
+    document.getElementById('sb-name').textContent = SESSION.resp.name;
+    document.getElementById('bnav-resp').style.display='flex';
+    document.getElementById('bnav-sup').style.display='none';
+    loadChecklistState();
+    subscribeReportes(); // live sync
+    renderChecklist(); renderIncList();
+    if (turnoYaEnviado()) switchTab('cierre');
+    else switchTab('chk');
+    navResp('reporte',0);
+  } else {
+    document.getElementById('tb-title').textContent = 'Supervisor General';
+    document.getElementById('tb-sub').textContent = 'Protección y Seguridad';
+    document.getElementById('sb-name').textContent = 'Supervisor';
+    document.getElementById('bnav-resp').style.display='none';
+    document.getElementById('bnav-sup').style.display='flex';
+    subscribeReportes(); // live real-time sync
+    navSup('dashboard',0);
+  }
+  scheduleNotifCheck();
+}
+
+// ════════════════════════════════════════
+// NAVIGATION
+// ════════════════════════════════════════
+let currentView = '';
+function showView(v) {
+  ['v-reporte','v-dashboard','v-detalle','v-desempeno','v-historial','v-admin'].forEach(id => {
+    document.getElementById(id).style.display = id===`v-${v}` ? '' : 'none';
+  });
+  document.getElementById('back-btn').style.display = v==='detalle' ? '' : 'none';
+  currentView = v;
+  document.getElementById('main-scroll').scrollTop = 0;
+}
+function navResp(v, idx) {
+  showView(v);
+  document.querySelectorAll('#bnav-resp .bni').forEach((b,i) => b.classList.toggle('on', i===idx));
+  if(isDesktop()) { renderDesktopSidebar(); setTimeout(applyDesktopGrids,50); }
+  if(v==='historial') renderHistorial(true);
+}
+function navSup(v, idx) {
+  showView(v);
+  document.querySelectorAll('#bnav-sup .bni').forEach((b,i) => b.classList.toggle('on', i===idx));
+  if(isDesktop()) { renderDesktopSidebar(); setTimeout(applyDesktopGrids,50); }
+  if(v==='dashboard') renderDashboard();
+  if(v==='desempeno') renderDesempeno();
+  if(v==='historial') renderHistorial(false);
+  if(v==='admin') renderAdmin();
+  document.getElementById('tb-title').textContent = {
+    dashboard:'Supervisor General', desempeno:'Desempeño',
+    historial:'Historial', admin:'Administración'
+  }[v]||'Supervisor';
+}
+function goBack() {
+  if(SESSION.role==='supervisor') navSup('dashboard',0);
+}
+let detalleInst = null;
+function openDetalle(instId) {
+  detalleInst = instId;
+  const inst = INSTALACIONES.find(i=>i.id===instId);
+  document.getElementById('tb-title').textContent = `${inst.icon} ${inst.name}`;
+  document.getElementById('tb-sub').textContent = 'Detalle del día';
+  showView('detalle');
+  document.getElementById('back-btn').style.display='';
+  renderDetalle(instId);
+}
+
+// ════════════════════════════════════════
+// TABS (responsable)
+// ════════════════════════════════════════
+function switchTab(tab) {
+  const isChk = tab==='chk';
+  document.getElementById('tab-content-chk').style.display = isChk?'':'none';
+  document.getElementById('tab-content-cierre').style.display = isChk?'none':'';
+  document.getElementById('tab-chk').style.background = isChk?'var(--g)':'transparent';
+  document.getElementById('tab-chk').style.color = isChk?'#09090E':'var(--t2)';
+  document.getElementById('tab-cierre').style.background = isChk?'transparent':'var(--g)';
+  document.getElementById('tab-cierre').style.color = isChk?'var(--t2)':'#09090E';
+  if (!isChk) renderCierreTab();
+}
+function renderCierreTab() {
+  const alreadySent = turnoYaEnviado();
+  document.getElementById('cierre-bloqueado').style.display = alreadySent?'':'none';
+  document.getElementById('cierre-form').style.display = alreadySent?'none':'';
+  if (alreadySent) {
+    const rep = DB.reportes.find(r=>r.inst===SESSION.inst&&r.turn===SESSION.turn&&r.fecha===todayStr());
+    document.getElementById('cierre-bloqueado-msg').textContent =
+      `Reporte enviado a las ${rep?.hora||'—'} · Cumplimiento: ${rep?.pct||0}%. Solo se permite un reporte por turno.`;
+  }
+  // aviso actividades tarde
+  const acts = getActividadesForSession();
+  const lateActs = acts.filter((a,i) => {
+    if (!a.timeLimit) return false;
+    const ts = stateR.checks[i];
+    if (!ts) return false;
+    const [hh,mm] = a.timeLimit.split(':').map(Number);
+    const lim = hh*60+mm;
+    const done = new Date(ts);
+    return done.getHours()*60+done.getMinutes() > lim;
+  });
+  const avisoEl = document.getElementById('cierre-aviso-tiempo');
+  if (lateActs.length) {
+    avisoEl.style.display='';
+    avisoEl.innerHTML = `<div class="banner banner-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div>${lateActs.length} actividad(es) completada(s) con retraso: <strong>${lateActs.map(a=>a.name).join(', ')}</strong>. Quedarán registradas en el reporte.</div></div>`;
+  } else { avisoEl.style.display='none'; }
+}
+function turnoYaEnviado() {
+  return DB.reportes.some(r=>r.inst===SESSION.inst&&r.turn===SESSION.turn&&r.fecha===todayStr());
+}
+
+// ════════════════════════════════════════
+// CHECKLIST
+// ════════════════════════════════════════
+let stateR = { checks:{}, incidentes:[], incImgData:null, selectedTipo:null };
+
+function getActividadesForSession() {
+  const {inst, turn} = SESSION;
+  const today = new Date();
+  const dow = today.getDay();
+  const dom = today.getDate();
+  return DB.actividades.filter(a => {
+    if (a.inst !== 'comun' && a.inst !== inst) return false;
+    if (!a.turnos.includes(turn)) return false;
+    if (a.freq==='semanal' && dow!==1) return false;
+    if (a.freq==='quincenal' && dom!==1 && dom!==16) return false;
+    if (a.freq==='mensual' && dom!==1) return false;
+    return true;
+  });
+}
+function isLate(a, checkTs) {
+  // Returns true if the activity was checked after its time limit
+  if (!a.timeLimit || !checkTs) return false;
+  const [hh,mm] = a.timeLimit.split(':').map(Number);
+  const lim = hh*60+mm;
+  const done = new Date(checkTs);
+  return done.getHours()*60+done.getMinutes() > lim;
+}
+function renderChecklist() {
+  const acts = getActividadesForSession();
+  const done = Object.keys(stateR.checks).length;
+  const onTime = acts.filter((a,i) => stateR.checks[i]!==undefined && !isLate(a, stateR.checks[i])).length;
+  const late = acts.filter((a,i) => stateR.checks[i]!==undefined && isLate(a, stateR.checks[i])).length;
+  const pct = acts.length ? Math.round(done/acts.length*100) : 0;
+  // Ring color: green if all on time, amber if any late
+  const ringColor = late>0 ? 'var(--y)' : 'var(--g)';
+  document.getElementById('ring-c').style.stroke = ringColor;
+  document.getElementById('ring-pct').style.color = ringColor;
+  let progLabel = `${done} de ${acts.length} completadas`;
+  if (late>0) progLabel += ` · ${late} con retraso`;
+  document.getElementById('chk-prog-lbl').textContent = progLabel;
+  document.getElementById('ring-pct').textContent = pct+'%';
+  const circum = 131.9;
+  document.getElementById('ring-c').style.strokeDashoffset = circum - circum*pct/100;
+  const now = new Date();
+  const nowMin = now.getHours()*60+now.getMinutes();
+
+  // Late summary banner
+  const lateSummary = document.getElementById('chk-late-summary');
+  const lateNames = acts.filter((a,i)=>stateR.checks[i]!==undefined&&isLate(a,stateR.checks[i])).map(a=>a.name);
+  if (lateNames.length) {
+    lateSummary.style.display='flex';
+    document.getElementById('chk-late-text').textContent = `${lateNames.length} actividad(es) completada(s) después del límite: ${lateNames.join(', ')}`;
+  } else { lateSummary.style.display='none'; }
+
+  document.getElementById('chk-list').innerHTML = acts.map((a,i) => {
+    const isDone = stateR.checks[i]!==undefined;
+    const checkTs = stateR.checks[i];
+    const late = isDone && isLate(a, checkTs);
+    const t = isDone ? new Date(checkTs).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '';
+    // Status indicator
+    let statusDot = '';
+    if (isDone && late) statusDot = `<span style="font-size:9px;color:var(--y);font-family:var(--mono);margin-left:4px;">TARDE</span>`;
+    else if (isDone) statusDot = `<span style="font-size:9px;color:var(--g);font-family:var(--mono);margin-left:4px;">A TIEMPO</span>`;
+    // Limit hint when not done
+    let limitHtml = '';
+    if (a.timeLimit && !isDone) {
+      const [hh,mm] = a.timeLimit.split(':').map(Number);
+      const lim = hh*60+mm;
+      if (nowMin > lim) limitHtml = `<span class="chk-late">⚠ Límite: ${a.timeLimit}</span>`;
+      else limitHtml = `<span style="color:var(--t3)">⏰ Límite: ${a.timeLimit}</span>`;
+    }
+    const freqLabel = a.freq!=='diaria' ? `<span style="color:var(--t3)">${{semanal:'Sem',quincenal:'Quin',mensual:'Mens'}[a.freq]||a.freq}</span>` : '';
+    const timeColor = late ? 'color:var(--y)' : 'color:var(--g)';
+    return `<div class="chk-item" onclick="toggleChk(${i})">
+      <div class="chk-box${isDone?' on':''}${late?' style=background:var(--y);border-color:var(--y)':''}"><svg viewBox="0 0 12 12"><polyline points="1.5 6.5 5 10 10.5 2"/></svg></div>
+      <div class="chk-info">
+        <div class="chk-name${isDone?' done':''}">${a.name}${statusDot}</div>
+        <div class="chk-meta">${limitHtml}${freqLabel}</div>
+      </div>
+      <div class="chk-time" style="${timeColor}">${t}</div>
+    </div>`;
+  }).join('') || '<div style="padding:12px 16px;font-size:12px;color:var(--t3)">No hay actividades para este turno hoy</div>';
+}
+function toggleChk(i) {
+  // If turno already sent, checklist is read-only
+  if (turnoYaEnviado()) { showToast('Reporte ya enviado. Checklist bloqueado.'); return; }
+  if (stateR.checks[i]) delete stateR.checks[i];
+  else stateR.checks[i] = Date.now();
+  // Persist checklist state so it survives browser refresh
+  try { localStorage.setItem(`chk_${SESSION.inst}_${SESSION.turn}_${todayStr()}`, JSON.stringify(stateR.checks)); } catch(e){}
+  renderChecklist();
+}
+function loadChecklistState() {
+  try {
+    const saved = localStorage.getItem(`chk_${SESSION.inst}_${SESSION.turn}_${todayStr()}`);
+    if (saved) stateR.checks = JSON.parse(saved);
+  } catch(e){}
+}
+
+// ════════════════════════════════════════
+// INCIDENTES
+// ════════════════════════════════════════
+let incImgData = null;
+function openIncModal() {
+  stateR.selectedTipo=null; incImgData=null;
+  document.getElementById('m-inc-desc').value='';
+  document.querySelectorAll('.tipo-opt').forEach(el => el.className='tipo-opt');
+  document.getElementById('m-inc-upzone').style.display='';
+  document.getElementById('m-inc-prev').classList.remove('on');
+  openMod('m-inc');
+}
+function selTipo(t) {
+  stateR.selectedTipo=t;
+  const cls = {novedad:'t-novedad',incidente:'t-incidente',visita:'t-visita',normal:'t-normal'};
+  document.querySelectorAll('.tipo-opt').forEach(el => {
+    el.className = 'tipo-opt'+(el.dataset.tipo===t ? ' '+cls[t] : '');
+  });
+}
+function handleIncImg(input) {
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    incImgData = e.target.result;
+    document.getElementById('m-inc-prev-img').src = incImgData;
+    document.getElementById('m-inc-prev-name').textContent = file.name;
+    document.getElementById('m-inc-upzone').style.display='none';
+    document.getElementById('m-inc-prev').classList.add('on');
+  };
+  reader.readAsDataURL(file);
+}
+function removeIncImg() {
+  incImgData=null;
+  document.getElementById('m-inc-upzone').style.display='';
+  document.getElementById('m-inc-prev').classList.remove('on');
+}
+function saveIncidente() {
+  if (!stateR.selectedTipo) { showToast('Selecciona el tipo'); return; }
+  const desc = document.getElementById('m-inc-desc').value.trim();
+  if (!desc) { showToast('Escribe una descripción'); return; }
+  stateR.incidentes.push({tipo:stateR.selectedTipo, desc, img:incImgData, hora: new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})});
+  closeMod('m-inc'); renderIncList(); showToast('✓ Registrado');
+}
+function renderIncList() {
+  const el = document.getElementById('inc-list');
+  if (!stateR.incidentes.length) { el.innerHTML='<div class="empty">Sin incidentes registrados</div>'; return; }
+  const cc = {novedad:'cy',incidente:'cr',visita:'cb',normal:'cg'};
+  const cl = {novedad:'Novedad',incidente:'Incidente',visita:'Visita',normal:'Sin novedad'};
+  el.innerHTML = stateR.incidentes.map((inc,i) =>
+    `<div class="inc-card">
+      <div class="inc-head"><span class="chip ${cc[inc.tipo]||'cn'}">${cl[inc.tipo]||inc.tipo}</span><span class="inc-hora">${inc.hora}</span></div>
+      <div class="inc-desc">${inc.desc}</div>
+      ${inc.img?`<img class="inc-img" src="${inc.img}" onclick="openFullImg('inc_${i}')" alt="ev">`:''}
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════
+// CERRAR TURNO
+// ════════════════════════════════════════
+async function cerrarTurno() {
+  if (turnoYaEnviado()) { showToast('Ya enviaste el reporte de este turno'); return; }
+  const acts = getActividadesForSession();
+  const done = Object.keys(stateR.checks).length;
+  const pct = acts.length ? Math.round(done/acts.length*100) : 100;
+  const resumen = document.getElementById('f-resumen').value.trim();
+  const actDetail = acts.map((a,i) => ({
+    name: a.name, done: stateR.checks[i]!==undefined,
+    ts: stateR.checks[i]||null, timeLimit: a.timeLimit||'',
+    late: isLate(a, stateR.checks[i]),
+    hora: stateR.checks[i] ? new Date(stateR.checks[i]).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : '',
+  }));
+  const lateCount = actDetail.filter(a=>a.late).length;
+  const rep = {
+    id: Date.now(), timestamp: Date.now(),
+    inst: SESSION.inst, turn: SESSION.turn,
+    respId: SESSION.resp.id, respName: SESSION.resp.name,
+    fecha: todayStr(),
+    hora: new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),
+    pct, done, total:acts.length, lateCount,
+    resumen: resumen||'(Sin novedades)',
+    incidentes: [...stateR.incidentes],
+    checksMap: {...stateR.checks},
+    actNames: acts.map(a=>a.name), actDetail,
+  };
+  showLoader('Enviando reporte...');
+  let saved = false;
+  if (window.FB_READY) {
+    const fbId = await window.FB.addReporte(rep);
+    if (fbId) { rep.fbId = fbId; saved = true; }
+  }
+  if (!saved) {
+    DB.reportes.unshift(rep);
+    try { localStorage.setItem('ps_reportes_local', JSON.stringify(DB.reportes)); } catch(e){}
+  }
+  hideLoader();
+  try { localStorage.removeItem(`chk_${SESSION.inst}_${SESSION.turn}_${todayStr()}`); } catch(e){}
+  showToast(`✓ Reporte enviado · ${pct}%`);
+  sendTelegramNotif(rep);
+  stateR={checks:{},incidentes:[],incImgData:null,selectedTipo:null};
+  document.getElementById('f-resumen').value='';
+  renderIncList();
+  const b = document.getElementById('v-banner');
+  b.style.display='';
+  b.innerHTML = `<div class="banner"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><div>Reporte del turno <strong>${TURNOS_CFG.find(t=>t.id===SESSION.turn)?.label}</strong> enviado · <strong>${pct}%</strong> cumplimiento${lateCount>0?` · <strong style="color:var(--y)">${lateCount} con retraso</strong>`:''}</div></div>`;
+  setTimeout(()=>{b.style.display='none';},6000);
+  switchTab('cierre');
+}
+
+// ════════════════════════════════════════
+// DASHBOARD
+// ════════════════════════════════════════
+function renderDashboard() {
+  const hoy = todayStr();
+  document.getElementById('dash-fecha').textContent = hoy;
+  const hoyReps = DB.reportes.filter(r=>r.fecha===hoy);
+  const instsActivas = new Set(hoyReps.map(r=>r.inst)).size;
+  const totalIncs = hoyReps.reduce((s,r)=>s+r.incidentes.length,0);
+  const totalEvid = hoyReps.reduce((s,r)=>s+r.incidentes.filter(i=>i.img).length,0);
+  const avgPct = hoyReps.length ? Math.round(hoyReps.reduce((s,r)=>s+r.pct,0)/hoyReps.length) : null;
+  document.getElementById('ds-inst').textContent = `${instsActivas}/6`;
+  document.getElementById('ds-pct').textContent = avgPct!==null ? avgPct+'%' : '—';
+  document.getElementById('ds-reps').textContent = `${hoyReps.length}/18`;
+  document.getElementById('ds-incs').textContent = totalIncs;
+  const pctColor = p => p>=80?'ok':p>=50?'mid':'bad';
+  const cc = {novedad:'cy',incidente:'cr',visita:'cb',normal:'cg'};
+  document.getElementById('inst-dash-list').innerHTML = INSTALACIONES.map(inst => {
+    const reps = hoyReps.filter(r=>r.inst===inst.id);
+    const instPct = reps.length ? Math.round(reps.reduce((s,r)=>s+r.pct,0)/reps.length) : null;
+    const pcts = TURNOS_CFG.map(t => {
+      const r = reps.find(r=>r.turn===t.id);
+      return `<div class="turn-pill"><div class="tp-label">${t.label.slice(0,3)}</div><div class="tp-val ${r?pctColor(r.pct):'none'}">${r?r.pct+'%':'—'}</div></div>`;
+    }).join('');
+    return `<div class="inst-row" onclick="openDetalle('${inst.id}')">
+      <div class="inst-row-head">
+        <div class="ir-icon">${inst.icon}</div>
+        <div class="ir-info"><div class="ir-name">${inst.name}</div><div class="ir-sub">${reps.length} de 3 turnos reportados</div></div>
+        <div class="ir-right">
+          <div class="ir-pct" style="color:${instPct!==null?(instPct>=80?'var(--g)':instPct>=50?'var(--y)':'var(--r)'):'var(--t4)'}">${instPct!==null?instPct+'%':'—'}</div>
+          ${reps.reduce((s,r)=>s+r.incidentes.length,0)>0?`<span class="chip cr" style="font-size:9px">⚠ ${reps.reduce((s,r)=>s+r.incidentes.length,0)} inc</span>`:''}
+        </div>
+      </div>
+      <div class="turn-pills">${pcts}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDetalle(instId) {
+  const inst = INSTALACIONES.find(i=>i.id===instId);
+  const hoy = todayStr();
+  const hoyReps = DB.reportes.filter(r=>r.fecha===hoy && r.inst===instId);
+  const cc = {novedad:'cy',incidente:'cr',visita:'cb',normal:'cg'};
+  const cl = {novedad:'Novedad',incidente:'Incidente',visita:'Visita',normal:'Sin novedad'};
+  document.getElementById('detalle-content').innerHTML = TURNOS_CFG.map(t => {
+    const rep = hoyReps.find(r=>r.turn===t.id);
+    if (!rep) return `<div class="turn-detail-card"><div class="tdc-head"><div><div class="tdc-name">${t.icon} ${t.label}</div><div class="tdc-resp" style="color:var(--t4)">Sin reporte · ${t.start}–${t.end}</div></div><span class="chip cn">Pendiente</span></div></div>`;
+    const pctCol = rep.pct>=80?'var(--g)':rep.pct>=50?'var(--y)':'var(--r)';
+    const imgs = rep.incidentes.filter(i=>i.img);
+    return `<div class="turn-detail-card">
+      <div class="tdc-head">
+        <div><div class="tdc-name">${t.icon} ${t.label}</div><div class="tdc-resp">${rep.respName} · ${rep.hora}</div></div>
+        <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${pctCol}">${rep.pct}%</div>
+      </div>
+      <div class="tdc-checks">
+        ${(rep.actDetail||rep.actNames?.map((n,i)=>({name:n,done:rep.checksMap&&rep.checksMap[i]!==undefined,late:false,hora:''}))||[]).map((a)=>{
+          const col = a.done ? (a.late?'var(--y)':'var(--g)') : 'var(--t3)';
+          const label = a.done ? (a.late?` <span style="font-size:9px;color:var(--y);font-family:var(--mono)">TARDE ${a.hora}</span>`:`<span style="font-size:9px;color:var(--t3);font-family:var(--mono)"> ${a.hora}</span>`) : '';
+          return `<div class="tdc-chk"><svg viewBox="0 0 14 14" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 7 6 11 12 3"/></svg><span style="color:${a.done?'var(--t1)':'var(--t3)'}">${a.name}</span>${label}</div>`;
+        }).join('')}
+      </div>
+      ${rep.resumen!=='(Sin novedades)'?`<div class="tdc-note">📝 ${rep.resumen}</div>`:''}
+      ${rep.incidentes.length?`<div class="tdc-incs">${rep.incidentes.map(inc=>`<span class="chip ${cc[inc.tipo]||'cn'}">${cl[inc.tipo]||inc.tipo}: ${inc.desc.slice(0,30)}${inc.desc.length>30?'...':''}</span>`).join('')}</div>`:''}
+      ${imgs.length?`<div class="tdc-imgs">${imgs.map((inc,j)=>`<img class="tdc-thumb" src="${inc.img}" onclick="openFullImg('det_${instId}_${DB.reportes.indexOf(rep)}_${j}')" alt="ev">`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════
+// DESEMPEÑO
+// ════════════════════════════════════════
+function renderDesempeno() {
+  const last7 = [];
+  for(let i=0;i<7;i++){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    last7.push(dateStr(d));
+  }
+  const html = DB.responsables.map(resp => {
+    const reps = DB.reportes.filter(r=>r.respId===resp.id);
+    const l7reps = reps.filter(r=>last7.includes(r.fecha));
+    const avgPct = l7reps.length ? Math.round(l7reps.reduce((s,r)=>s+r.pct,0)/l7reps.length) : null;
+    const totalIncs = reps.reduce((s,r)=>s+r.incidentes.length,0);
+    const inst = INSTALACIONES.find(i=>i.id===resp.inst);
+    const turn = TURNOS_CFG.find(t=>t.id===resp.turn);
+    const streak = last7.map(d => {
+      const r = reps.find(rep=>rep.fecha===d);
+      const col = r ? (r.pct>=80?'var(--g)':r.pct>=50?'var(--y)':'var(--r)') : 'var(--t4)';
+      return `<div class="streak-dot" title="${d}" style="background:${col}"></div>`;
+    }).join('');
+    const pctCol = avgPct!==null?(avgPct>=80?'var(--g)':avgPct>=50?'var(--y)':'var(--r)'):'var(--t4)';
+    return `<div class="resp-card">
+      <div class="rc-head">
+        <div class="rc-avatar">${resp.emoji||'👤'}</div>
+        <div class="rc-info"><div class="rc-name">${resp.name}</div><div class="rc-inst">${inst?.name||resp.inst} · ${turn?.label||resp.turn}</div></div>
+        <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:${pctCol}">${avgPct!==null?avgPct+'%':'—'}</div>
+      </div>
+      <div class="rc-stats">
+        <div class="rc-stat"><div class="rc-sv">${l7reps.length}</div><div class="rc-sl">Reportes (7d)</div></div>
+        <div class="rc-stat"><div class="rc-sv">${totalIncs}</div><div class="rc-sl">Incidentes</div></div>
+        <div class="rc-stat"><div class="rc-sv">${7-l7reps.length}</div><div class="rc-sl">Días sin reporte</div></div>
+      </div>
+      <div class="streak-bar" title="Últimos 7 días">${streak}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('desemp-list').innerHTML = html || '<div class="empty">Sin responsables configurados</div>';
+}
+
+// ════════════════════════════════════════
+// HISTORIAL
+// ════════════════════════════════════════
+function renderHistorial(onlyMyInst) {
+  const reps = onlyMyInst
+    ? DB.reportes.filter(r=>r.inst===SESSION.inst)
+    : DB.reportes;
+  const cc = {novedad:'cy',incidente:'cr',visita:'cb',normal:'cg'};
+  const cl = {novedad:'Novedad',incidente:'Incidente',visita:'Visita',normal:'Sin novedad'};
+  const isSup = SESSION?.role==='supervisor';
+  if (!reps.length) { document.getElementById('hist-list').innerHTML='<div class="empty">Sin reportes guardados</div>'; return; }
+  const pctCol = p => p>=80?'var(--g)':p>=50?'var(--y)':'var(--r)';
+  document.getElementById('hist-list').innerHTML = reps.map(r => {
+    const inst = INSTALACIONES.find(i=>i.id===r.inst);
+    const turn = TURNOS_CFG.find(t=>t.id===r.turn);
+    const lateTag = r.lateCount>0 ? `<span class="chip cy" style="font-size:9px;margin-left:4px;">⏰ ${r.lateCount} tarde</span>` : '';
+    return `<div class="turn-detail-card">
+      <div class="tdc-head">
+        <div style="flex:1;min-width:0;">
+          <div class="tdc-name">${inst?.icon||''} ${inst?.name||r.inst} · ${turn?.label||r.turn}</div>
+          <div class="tdc-resp">${r.respName} · ${r.fecha} ${r.hora}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:${pctCol(r.pct)}">${r.pct}%${lateTag}</div>
+          ${isSup ? `<button class="btn-sm btn-danger" onclick="confirmarEliminar(${r.id})" style="font-size:11px;padding:4px 8px;">🗑</button>` : ''}
+        </div>
+      </div>
+      ${r.resumen!=='(Sin novedades)'?`<div class="tdc-note">📝 ${r.resumen}</div>`:''}
+      ${r.incidentes.length?`<div class="tdc-incs">${r.incidentes.map(inc=>`<span class="chip ${cc[inc.tipo]||'cn'}">${cl[inc.tipo]||inc.tipo}</span>`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+}
+function confirmarEliminar(id) {
+  const rep = DB.reportes.find(r=>r.id===id);
+  if (!rep) return;
+  const inst = INSTALACIONES.find(i=>i.id===rep.inst)?.name||rep.inst;
+  const turn = TURNOS_CFG.find(t=>t.id===rep.turn)?.label||rep.turn;
+  // Use custom confirm modal
+  document.getElementById('del-modal-info').textContent =
+    `${inst} · ${turn} · ${rep.respName} · ${rep.fecha} · ${rep.pct}%`;
+  document.getElementById('del-modal-id').value = id;
+  openMod('m-del');
+}
+function deleteReporte() {
+  const id = parseInt(document.getElementById('del-modal-id').value);
+  const rep = DB.reportes.find(r=>r.id===id);
+  if (rep?.fbId && window.FB_READY) {
+    window.FB.deleteReporte(rep.fbId); // real-time listener will update DB.reportes
+  } else {
+    DB.reportes = DB.reportes.filter(r=>r.id!==id);
+    try { localStorage.setItem('ps_reportes_local', JSON.stringify(DB.reportes)); } catch(e){}
+    renderHistorial(false);
+    renderDashboard();
+  }
+  closeMod('m-del');
+  showToast('Reporte eliminado');
+}
+
+// ════════════════════════════════════════
+// ADMIN
+// ════════════════════════════════════════
+let editActId = null, editActInst = 'comun';
+let actTurnosEdit = ['matutino','vespertino','nocturno'];
+let freqEdit = 'diaria';
+
+function renderAdmin() {
+  // Telegram config
+  document.getElementById('tg-token').value = DB.tgToken||'';
+  document.getElementById('tg-chatid').value = DB.tgChatId||'';
+  // Supervisor PIN indicator
+  const pinDots = document.getElementById('sup-pin-dots');
+  if (pinDots) pinDots.textContent = '••••';
+  // Acts comunes
+  renderAdminActs();
+  // Responsables
+  renderAdminResps();
+}
+function renderAdminActs() {
+  const comuns = DB.actividades.filter(a=>a.inst==='comun');
+  const freqLabel = {diaria:'Diaria',semanal:'Semanal (lunes)',quincenal:'Quincenal',mensual:'Mensual (día 1)'};
+  const renderAct = (a,i) => `<div class="act-admin-row">
+    <div class="act-admin-info">
+      <div class="act-admin-name">${a.name}</div>
+      <div class="act-admin-meta">
+        <span>${freqLabel[a.freq]||a.freq}</span>
+        ${a.timeLimit?`<span>⏰ ${a.timeLimit}</span>`:''}
+        <span>${a.turnos.map(t=>TURNOS_CFG.find(tc=>tc.id===t)?.icon||t).join(' ')}</span>
+      </div>
+    </div>
+    <div class="act-admin-actions">
+      <button class="btn-sm" onclick="openActModal('${a.id}','${a.inst}')">✎</button>
+      <button class="btn-sm btn-danger" onclick="deleteAct('${a.id}')">✕</button>
+    </div>
+  </div>`;
+  document.getElementById('admin-acts-comun').innerHTML = comuns.map(renderAct).join('') || '<div style="padding:12px 15px;font-size:12px;color:var(--t4)">Sin actividades comunes</div>';
+  // Por instalación
+  let instHtml = '';
+  INSTALACIONES.forEach(inst => {
+    const iacts = DB.actividades.filter(a=>a.inst===inst.id);
+    instHtml += `<div class="section-lbl" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Exclusivas · ${inst.icon} ${inst.name}</span>
+      <button class="btn-sm btn-accent" onclick="openActModal(null,'${inst.id}')">+ Nueva</button>
+    </div>
+    <div class="admin-section">
+      ${iacts.map(renderAct).join('')||'<div style="padding:12px 15px;font-size:12px;color:var(--t4)">Sin actividades exclusivas</div>'}
+    </div>`;
+  });
+  document.getElementById('admin-acts-por-inst').innerHTML = instHtml;
+}
+function renderAdminResps() {
+  let html = '';
+  INSTALACIONES.forEach(inst => {
+    const resps = DB.responsables.filter(r=>r.inst===inst.id);
+    html += `<div class="section-lbl">${inst.icon} ${inst.name}</div>
+    <div class="admin-section">
+      ${resps.map((r,i) => `<div class="resp-admin-row">
+        <div class="ra-avatar">${r.emoji||'👤'}</div>
+        <div class="ra-info"><div class="ra-name">${r.name}</div><div class="ra-meta">${TURNOS_CFG.find(t=>t.id===r.turn)?.label||r.turn}</div></div>
+        <span class="pin-badge">●●●●</span>
+        <button class="btn-sm" onclick="openRespModal('${r.id}')">✎</button>
+      </div>`).join('')}
+    </div>`;
+  });
+  document.getElementById('admin-resps').innerHTML = html;
+}
+function openActModal(id, inst) {
+  editActId = id; editActInst = inst||'comun';
+  actTurnosEdit = ['matutino','vespertino','nocturno'];
+  freqEdit = 'diaria';
+  const a = id ? DB.actividades.find(ac=>ac.id===id) : null;
+  document.getElementById('m-act-title').textContent = id ? 'Editar actividad' : 'Nueva actividad';
+  document.getElementById('m-act-name').value = a?.name||'';
+  document.getElementById('m-act-time').value = a?.timeLimit||'';
+  document.getElementById('m-act-inst').value = a?.inst||inst||'comun';
+  if (a) { freqEdit=a.freq; actTurnosEdit=[...a.turnos]; }
+  // render freq
+  document.querySelectorAll('#m-act-freq .freq-btn').forEach(b => b.classList.toggle('sel', b.dataset.freq===freqEdit));
+  document.querySelectorAll('#m-act-turnos .freq-btn').forEach(b => b.classList.toggle('sel', actTurnosEdit.includes(b.dataset.t)));
+  openMod('m-act');
+}
+function selFreq(f) { freqEdit=f; document.querySelectorAll('#m-act-freq .freq-btn').forEach(b=>b.classList.toggle('sel',b.dataset.freq===f)); }
+function toggleActTurn(t) {
+  const i = actTurnosEdit.indexOf(t);
+  if(i>=0) actTurnosEdit.splice(i,1); else actTurnosEdit.push(t);
+  document.querySelectorAll('#m-act-turnos .freq-btn').forEach(b=>b.classList.toggle('sel',actTurnosEdit.includes(b.dataset.t)));
+}
+function saveAct() {
+  const name = document.getElementById('m-act-name').value.trim();
+  if (!name) { showToast('Escribe el nombre'); return; }
+  const inst = document.getElementById('m-act-inst').value;
+  const timeLimit = document.getElementById('m-act-time').value;
+  if (editActId) {
+    const a = DB.actividades.find(ac=>ac.id===editActId);
+    if(a) { a.name=name; a.freq=freqEdit; a.turnos=actTurnosEdit; a.timeLimit=timeLimit; a.inst=inst; }
+  } else {
+    DB.actividades.push({id:`act_${Date.now()}`,name,freq:freqEdit,turnos:actTurnosEdit,timeLimit,inst});
+  }
+  saveDB(); closeMod('m-act'); renderAdminActs(); showToast('✓ Actividad guardada');
+}
+function deleteAct(id) {
+  if(!confirm('¿Eliminar esta actividad?')) return;
+  DB.actividades = DB.actividades.filter(a=>a.id!==id);
+  saveDB(); renderAdminActs(); showToast('Actividad eliminada');
+}
+function openRespModal(id) {
+  const r = DB.responsables.find(resp=>resp.id===id);
+  if(!r) return;
+  document.getElementById('m-resp-title').textContent = 'Editar responsable';
+  document.getElementById('m-resp-idx').value = id;
+  document.getElementById('m-resp-name').value = r.name;
+  document.getElementById('m-resp-pin').value = r.pin;
+  document.getElementById('m-resp-inst').value = r.inst;
+  document.getElementById('m-resp-turn').value = r.turn;
+  openMod('m-resp');
+}
+function saveResp() {
+  const id = document.getElementById('m-resp-idx').value;
+  const name = document.getElementById('m-resp-name').value.trim();
+  const pin = document.getElementById('m-resp-pin').value.trim();
+  if(!name||pin.length!==4) { showToast('Nombre y PIN de 4 dígitos requeridos'); return; }
+  const r = DB.responsables.find(resp=>resp.id===id);
+  if(r) { r.name=name; r.pin=pin; r.inst=document.getElementById('m-resp-inst').value; r.turn=document.getElementById('m-resp-turn').value; }
+  saveDB(); closeMod('m-resp'); renderAdminResps(); showToast('✓ Responsable actualizado');
+}
+
+// ════════════════════════════════════════
+// NOTIFICACIONES
+// ════════════════════════════════════════
+function setupBrowserNotif() {
+  if (!('Notification' in window)) { showToast('Tu navegador no soporta notificaciones'); return; }
+  Notification.requestPermission().then(p => {
+    if (p==='granted') { DB.notifEnabled=true; saveDB(); showToast('✓ Notificaciones activadas'); }
+    else showToast('Permiso denegado');
+  });
+}
+function saveTelegramCfg() {
+  const token = document.getElementById('tg-token').value.trim();
+  const chatId = document.getElementById('tg-chatid').value.trim();
+  if (!token||!chatId) { showToast('Completa token y chat ID'); return; }
+  DB.tgToken=token; DB.tgChatId=chatId; saveDB();
+  sendTelegramMsg('✅ Configuración de alertas activada correctamente para Protección y Seguridad.').then(ok=>{
+    showToast(ok?'✓ Telegram configurado y probado':'Error al enviar mensaje de prueba');
+  });
+}
+async function sendTelegramMsg(text) {
+  if (!DB.tgToken||!DB.tgChatId) return false;
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${DB.tgToken}/sendMessage`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({chat_id:DB.tgChatId, text, parse_mode:'HTML'})
+    });
+    return r.ok;
+  } catch(e) { return false; }
+}
+function sendTelegramNotif(rep) {
+  if (!DB.tgToken||!DB.tgChatId) return;
+  const inst = INSTALACIONES.find(i=>i.id===rep.inst);
+  const turn = TURNOS_CFG.find(t=>t.id===rep.turn);
+  const incs = rep.incidentes.length;
+  let msg = `🛡 <b>Reporte recibido</b>\n📍 ${inst?.name||rep.inst} · ${turn?.label||rep.turn}\n👤 ${rep.respName}\n📊 Cumplimiento: <b>${rep.pct}%</b>\n⏰ ${rep.hora}`;
+  if (incs>0) msg += `\n⚠️ <b>${incs} incidente(s) reportados</b>`;
+  sendTelegramMsg(msg);
+}
+function sendTelegramAlert(instId, turnId) {
+  const inst = INSTALACIONES.find(i=>i.id===instId);
+  const turn = TURNOS_CFG.find(t=>t.id===turnId);
+  const msg = `⚠️ <b>Alerta: turno sin reporte</b>\n📍 ${inst?.name||instId}\n🌙 Turno ${turn?.label||turnId}\nEl responsable no ha enviado el reporte de cierre.`;
+  sendTelegramMsg(msg);
+  if (DB.notifEnabled && 'Notification' in window && Notification.permission==='granted') {
+    new Notification('⚠️ Turno sin reporte', {
+      body: `${inst?.name||instId} · Turno ${turn?.label||turnId}`,
+      icon: ''
+    });
+  }
+}
+let notifCheckInterval = null;
+function scheduleNotifCheck() {
+  if(notifCheckInterval) clearInterval(notifCheckInterval);
+  notifCheckInterval = setInterval(checkMissingReports, 60000);
+}
+function checkMissingReports() {
+  if (SESSION?.role !== 'supervisor') return;
+  const now = new Date();
+  const hoy = todayStr();
+  INSTALACIONES.forEach(inst => {
+    TURNOS_CFG.forEach(turn => {
+      const [endH] = turn.end.split(':').map(Number);
+      const graceH = (endH + 1) % 24;
+      const nowH = now.getHours();
+      const alreadyReported = DB.reportes.some(r=>r.fecha===hoy&&r.inst===inst.id&&r.turn===turn.id);
+      const alertKey = `alerted_${hoy}_${inst.id}_${turn.id}`;
+      if (!alreadyReported && nowH >= graceH && nowH < graceH+2 && !sessionStorage.getItem(alertKey)) {
+        sessionStorage.setItem(alertKey,'1');
+        sendTelegramAlert(inst.id, turn.id);
+      }
+    });
+  });
+}
+
+// ════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════
+function exportExcel() {
+  if (!DB.reportes.length) { showToast('Sin reportes para exportar'); return; }
+  const rows = DB.reportes.map(r => ({
+    Fecha: r.fecha, Hora: r.hora,
+    Instalación: INSTALACIONES.find(i=>i.id===r.inst)?.name||r.inst,
+    Turno: TURNOS_CFG.find(t=>t.id===r.turn)?.label||r.turn,
+    Responsable: r.respName,
+    'Cumplimiento (%)': r.pct,
+    'Actividades completadas': r.done,
+    'Total actividades': r.total,
+    'Completadas con retraso': r.lateCount||0,
+    'Detalle actividades': (r.actDetail||[]).map(a=>`[${a.done?(a.late?'TARDE':'OK'):'PENDIENTE'}] ${a.name}${a.hora?' '+a.hora:''}`).join(' | ')||'—',
+    Resumen: r.resumen,
+    Incidentes: r.incidentes.map(i=>`[${i.tipo}] ${i.desc}`).join(' | ')||'—',
+    'Evidencias (fotos)': r.incidentes.filter(i=>i.img).length,
+  }));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [{wch:12},{wch:8},{wch:14},{wch:12},{wch:18},{wch:14},{wch:18},{wch:16},{wch:40},{wch:50},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Reportes');
+  XLSX.writeFile(wb, `proteccion_seguridad_${todayStr()}.xlsx`);
+  showToast('✓ Excel descargado');
+}
+async function exportZip() {
+  const withImg = DB.reportes.filter(r=>r.incidentes.some(i=>i.img));
+  if (!withImg.length) { showToast('Sin evidencias para exportar'); return; }
+  showToast('Generando ZIP...');
+  const zip = new JSZip();
+  withImg.forEach(r => {
+    const inst = INSTALACIONES.find(i=>i.id===r.inst)?.name||r.inst;
+    const turn = TURNOS_CFG.find(t=>t.id===r.turn)?.label||r.turn;
+    const folder = zip.folder(`${inst}/${r.fecha}_${turn}`);
+    r.incidentes.filter(i=>i.img).forEach((inc,j) => {
+      const base64 = inc.img.split(',')[1];
+      const ext = inc.img.startsWith('data:image/png')?'png':'jpg';
+      folder.file(`incidente_${inc.tipo}_${j+1}.${ext}`, base64, {base64:true});
+    });
+  });
+  const blob = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `evidencias_${todayStr()}.zip`;
+  a.click();
+  showToast('✓ ZIP descargado');
+}
+
+// ════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════
+function todayStr() { return dateStr(new Date()); }
+function dateStr(d) { return d.toISOString().slice(0,10); }
+function openMod(id) { document.getElementById(id).classList.add('on'); }
+function closeMod(id) { document.getElementById(id).classList.remove('on'); }
+const imgFullMap = {};
+function openFullImg(key) {
+  let src = '';
+  if (key.startsWith('inc_')) {
+    const i = parseInt(key.split('_')[1]);
+    src = stateR.incidentes[i]?.img||'';
+  } else if (key.startsWith('det_')) {
+    const parts = key.split('_');
+    const ri = parseInt(parts[2]), ji = parseInt(parts[3]);
+    const imgs = DB.reportes[ri]?.incidentes.filter(i=>i.img)||[];
+    src = imgs[ji]?.img||'';
+  }
+  if (!src) return;
+  document.getElementById('imgfull-src').src = src;
+  document.getElementById('imgfull').classList.add('on');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2400);
+}
+function updateClock() {
+  document.getElementById('clock-badge').textContent = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+}
+setInterval(updateClock,1000); updateClock();
+
+
+// ════════════════════════════════════════
+// DESKTOP SIDEBAR
+// ════════════════════════════════════════
+function isDesktop() { return window.innerWidth >= 768; }
+
+function renderDesktopSidebar() {
+  const sidebar = document.getElementById('desk-sidebar');
+  if (!sidebar) return;
+  const role = SESSION?.role;
+  document.getElementById('sb-desk-name').textContent =
+    role === 'supervisor' ? 'Supervisor General' : (SESSION?.resp?.name || '—');
+
+  const navSup = [
+    {icon:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>', label:'Dashboard', view:'dashboard'},
+    {icon:'<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', label:'Desempeño', view:'desempeno'},
+    {icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', label:'Historial', view:'historial'},
+    {icon:'<circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/>', label:'Administración', view:'admin'},
+  ];
+  const navResp = [
+    {icon:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>', label:'Mi Reporte', view:'reporte'},
+    {icon:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', label:'Historial', view:'historial'},
+  ];
+  const items = role === 'supervisor' ? navSup : navResp;
+  const container = document.getElementById('desk-nav-items');
+  container.innerHTML = items.map(item =>
+    `<div class="dsi ${currentView===item.view?'on':''}" onclick="deskNav('${item.view}')">
+      <svg viewBox="0 0 24 24">${item.icon}</svg>${item.label}
+    </div>`
+  ).join('');
+}
+function deskNav(v) {
+  if (SESSION?.role === 'supervisor') navSup(v, ['dashboard','desempeno','historial','admin'].indexOf(v));
+  else navResp(v, ['reporte','historial'].indexOf(v));
+  renderDesktopSidebar();
+}
+
+// Desktop clock update
+function updateDesktopClock() {
+  const el = document.getElementById('sb-desk-clock');
+  if (el) el.textContent = new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',weekday:'short'});
+}
+setInterval(updateDesktopClock, 1000);
+
+// Desktop grid columns
+function applyDesktopGrids() {
+  if (!isDesktop()) return;
+  const g4 = document.querySelector('.desk-grid-4');
+  if (g4) g4.style.gridTemplateColumns = 'repeat(4,1fr)';
+  const g3s = document.querySelectorAll('.desk-grid-3');
+  g3s.forEach(el => el.style.gridTemplateColumns = 'repeat(3,1fr)');
+  const g2s = document.querySelectorAll('.desk-grid-2');
+  g2s.forEach(el => el.style.gridTemplateColumns = 'repeat(2,1fr)');
+}
+window.addEventListener('resize', applyDesktopGrids);
+
+// Patch initApp to show sidebar on desktop
+const _origInitApp = window.initApp;
+
+
+function saveSupPin() {
+  const pin = document.getElementById('sup-pin-input').value.trim();
+  if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
+    showToast('El PIN debe ser exactamente 4 dígitos');
+    return;
+  }
+  DB.supPin = pin;
+  saveDB();
+  document.getElementById('sup-pin-input').value = '';
+  document.getElementById('sup-pin-dots').textContent = '••••';
+  showToast('✓ PIN de supervisor actualizado');
+}
+// ════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════
+initDB(); // async — shows loader spinner, then calls renderLogin()
+</script>
+
+<script>
+// ── PWA: inject manifest dynamically ──
+(function() {
+  const manifest = {
+    name: "Protección y Seguridad",
+    short_name: "P&S",
+    description: "Sistema de supervisión de turnos y reportes",
+    start_url: "/",
+    display: "standalone",
+    background_color: "#090E14",
+    theme_color: "#090E14",
+    orientation: "portrait-primary",
+    icons: [
+      {
+        src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjM4IiBmaWxsPSIjMEYxNTIwIi8+PHBhdGggZD0iTTk2IDI0bDU2IDIxdjQyYzAgMzMtMjggNTYtNTYgNjYtMjgtMTAtNTYtMzMtNTYtNjZWNDV6IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMEU1QzAiIHN0cm9rZS13aWR0aD0iOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+",
+        sizes: "192x192",
+        type: "image/svg+xml",
+        purpose: "any maskable"
+      },
+      {
+        src: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEwMiIgZmlsbD0iIzBGMTUyMCIvPjxwYXRoIGQ9Ik0yNTYgNjRsMTQ5IDU2djExMmMwIDg4LTc0IDE0OS0xNDkgMTc2LTc1LTI3LTE0OS04OC0xNDktMTc2VjEyMHoiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwRTVDMCIgc3Ryb2tlLXdpZHRoPSIyMCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+",
+        sizes: "512x512",
+        type: "image/svg+xml",
+        purpose: "any maskable"
+      }
+    ]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement('link');
+  link.rel = 'manifest'; link.href = url;
+  document.head.appendChild(link);
+})();
+
+// ── Service Worker for offline cache ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const swCode = `
+const CACHE = 'ps-v1';
+const ASSETS = ['/'];
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys =>
+    Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))
+  ));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+  e.respondWith(
+    fetch(e.request).catch(() => caches.match(e.request))
+  );
+});
+`;
+    const blob = new Blob([swCode], {type:'application/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl).then(() => {
+      console.log('SW registrado ✓');
+    }).catch(e => console.warn('SW error:', e));
+  });
+}
+
+// ── Install prompt (Android Chrome) ──
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show install banner after login
+  window.addEventListener('fb-ready', () => {
+    setTimeout(showInstallBanner, 3000);
+  }, {once:true});
+});
+
+function showInstallBanner() {
+  if (!deferredPrompt) return;
+  // Don't show if already in standalone mode
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  const banner = document.createElement('div');
+  banner.id = 'install-banner';
+  banner.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0F1520;border:1px solid rgba(0,229,192,.3);border-radius:14px;padding:12px 18px;display:flex;align-items:center;gap:12px;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,.6);max-width:320px;width:90vw;';
+  banner.innerHTML = `
+    <div style="width:36px;height:36px;background:rgba(0,229,192,.1);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00E5C0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:12px;font-weight:600;color:#EDF0F7;">Instalar app</div>
+      <div style="font-size:11px;color:#8A92A8;margin-top:1px;">Agregar a pantalla de inicio</div>
+    </div>
+    <button id="btn-install" style="background:#00E5C0;color:#090E14;border:none;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">Instalar</button>
+    <button onclick="document.getElementById('install-banner').remove()" style="background:none;border:none;color:#4A5268;font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;">✕</button>
+  `;
+  document.body.appendChild(banner);
+  document.getElementById('btn-install').addEventListener('click', async () => {
+    banner.remove();
+    deferredPrompt.prompt();
+    const {outcome} = await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    if (outcome === 'accepted') showToast('✓ App instalada correctamente');
+  });
+  // Auto-hide after 8s
+  setTimeout(() => { if(document.getElementById('install-banner')) document.getElementById('install-banner').remove(); }, 8000);
+}
+</script>
+
+</body>
+</html>
