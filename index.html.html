@@ -42,7 +42,7 @@ window.FB = {
     try {
       const snap = await getDoc(doc(db, 'config', key));
       return snap.exists() ? snap.data().value : null;
-    } catch(e) { console.error('getConfig', e); return null; }
+    } catch(e) { console.error('getConfig', e); throw e; }
   },
   async setConfig(key, value) {
     try { await setDoc(doc(db, 'config', key), { value }); } catch(e) { console.error('setConfig', e); }
@@ -873,9 +873,22 @@ async function loadConfigFromFirebase() {
 function loadLocalFallback() {
   try {
     const stored = localStorage.getItem('ps_db');
-    if (stored) { const d = JSON.parse(stored); DB.responsables=d.responsables||defaultResponsables(); DB.actividades=d.actividades||defaultActividades(); DB.tgToken=d.tgToken||''; DB.tgChatId=d.tgChatId||''; }
-    else { DB.responsables=defaultResponsables(); DB.actividades=defaultActividades(); }
-  } catch(e) { DB.responsables=defaultResponsables(); DB.actividades=defaultActividades(); }
+    if (stored) {
+      const d = JSON.parse(stored);
+      DB.responsables = d.responsables || defaultResponsables();
+      DB.actividades  = d.actividades  || defaultActividades();
+      DB.tgToken      = d.tgToken      || '';
+      DB.tgChatId     = d.tgChatId     || '';
+      DB.notifEnabled = d.notifEnabled || false;
+      DB.supPin       = d.supPin       || '0000';
+    } else {
+      DB.responsables = defaultResponsables();
+      DB.actividades  = defaultActividades();
+    }
+  } catch(e) {
+    DB.responsables = defaultResponsables();
+    DB.actividades  = defaultActividades();
+  }
 }
 
 // ── SAVE CONFIG to Firebase (responsables, actividades, settings) ──
